@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de PGR</title>
+    <!-- Link para o arquivo de estilos CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Sistema de Gestão de PGR</h1>
+        <p>Gerencie e monitore o Programa de Gerenciamento de Riscos (PGR) em conformidade com a NR-01.</p>
+    </header>
+
+    <div class="main-container">
+        <nav>
+            <ul>
+                <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
+                <li><a href="#gestao-unidades" class="nav-link">Gestão de Unidades</a></li>
+                <li><a href="#checklist-pgr" class="nav-link">Checklist Interativo do PGR</a></li>
+                <li><a href="#inventario-riscos" class="nav-link">Inventário de Riscos</a></li>
+                <li><a href="#plano-acao" class="nav-link">Plano de Ação</a></li>
+                <li><a href="#gestao-documentos" class="nav-link">Gestão de Documentos</a></li>
+                <li><a href="#relatorios-dashboards" class="nav-link">Relatórios e Dashboards</a></li>
+                <li><a href="#notificacoes" class="nav-link">Notificações</a></li>
+                <li><a href="#perfis-usuario" class="nav-link">Perfis de Usuário</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- 1. Dashboard -->
+            <section id="dashboard" class="content-section active">
+                <h2>Dashboard</h2>
+                <p>Bem-vindo(a) ao seu painel de controle do PGR. Aqui você tem uma visão geral rápida do status atual e dos pontos críticos.</p>
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h4>Status Geral do PGR</h4>
+                        <p class="status-badge status-verified" id="dashboard-status-geral">Conforme</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h4>Riscos Críticos Identificados</h4>
+                        <p id="dashboard-riscos-criticos">0</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h4>Ações Pendentes</h4>
+                        <p id="dashboard-acoes-pendentes">0</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <h4>Conformidade NR-01</h4>
+                        <p id="dashboard-conformidade">0%</p>
+                    </div>
+                </div>
+                <h3>Visão Rápida dos Próximos Prazos</h3>
+                <table id="dashboard-prazos-table">
+                    <thead>
+                        <tr>
+                            <th>Ação</th>
+                            <th>Prazo</th>
+                            <th>Responsável</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 2. Gestão de Unidades -->
+            <section id="gestao-unidades" class="content-section">
+                <h2>Gestão de Unidades</h2>
+                <p>Aqui você pode cadastrar e gerenciar os dados de identificação das unidades de trabalho.</p>
+                <h3>Cadastrar Nova Unidade</h3>
+                <form id="form-unidade">
+                    <div class="form-group">
+                        <label for="nomeUnidade">Nome da Unidade:</label>
+                        <input type="text" id="nomeUnidade" name="nomeUnidade" placeholder="Ex: Unidade Central" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cnpjUnidade">CNPJ/CPF:</label>
+                        <input type="text" id="cnpjUnidade" name="cnpjUnidade" placeholder="00.000.000/0000-00 ou CPF" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="enderecoUnidade">Endereço:</label>
+                        <input type="text" id="enderecoUnidade" name="enderecoUnidade" placeholder="Rua Exemplo, 123" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="responsavelLegalUnidade">Responsável Legal:</label>
+                        <input type="text" id="responsavelLegalUnidade" name="responsavelLegalUnidade" placeholder="Nome Completo do Responsável" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contatoUnidade">Telefone/Email:</label>
+                        <input type="text" id="contatoUnidade" name="contatoUnidade" placeholder="(XX) XXXX-XXXX / email@exemplo.com">
+                    </div>
+                    <button type="submit">Cadastrar Unidade</button>
+                </form>
+                <h3>Unidades Cadastradas</h3>
+                <table id="unidades-cadastradas-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CNPJ/CPF</th>
+                            <th>Responsável</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 3. Checklist Interativo do PGR -->
+            <section id="checklist-pgr" class="content-section">
+                <h2>Checklist Interativo do PGR</h2>
+                <p>Monitore os itens do Programa de Gerenciamento de Riscos.</p>
+                <table id="checklist-table">
+                    <thead>
+                        <tr>
+                            <th>Item do Checklist</th>
+                            <th>Status</th>
+                            <th>Evidências</th>
+                            <th>Responsável</th>
+                            <th>Prazo</th>
+                            <th>Nível de Risco</th>
+                            <th>Medidas de Controle</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Itens do checklist serão carregados/adicionados via JS -->
+                    </tbody>
+                </table>
+                <button id="add-checklist-item">Adicionar Novo Item ao Checklist</button>
+            </section>
+
+            <!-- 4. Inventário de Riscos -->
+            <section id="inventario-riscos" class="content-section">
+                <h2>Inventário de Riscos</h2>
+                <p>Detalhe e avalie os riscos presentes no ambiente de trabalho.</p>
+                
+                <h3>Riscos Físicos</h3>
+                <form id="form-riscos-fisicos">
+                    <div class="form-group"><label for="tipoRiscoFisico">Tipo de Risco:</label><input type="text" id="tipoRiscoFisico" placeholder="Ex: Ruído, Vibração"></div>
+                    <div class="form-group"><label for="fonteRiscoFisico">Fonte:</label><input type="text" id="fonteRiscoFisico" placeholder="Ex: Compressor"></div>
+                    <div class="form-group"><label for="exposicaoFisico">Nível de Exposição:</label><input type="text" id="exposicaoFisico" placeholder="Ex: 85 dB (A)"></div>
+                    <div class="form-group"><label for="medidasControleFisico">Medidas de Controle:</label><textarea id="medidasControleFisico" placeholder="Ex: Protetor auricular"></textarea></div>
+                    <button type="submit">Adicionar Risco Físico</button>
+                </form>
+                <table id="riscos-fisicos-table">
+                    <thead><tr><th>Tipo</th><th>Fonte</th><th>Exposição</th><th>Controle</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+                <h3>Riscos Químicos</h3>
+                <form id="form-riscos-quimicos">
+                    <div class="form-group"><label for="tipoRiscoQuimico">Substância:</label><input type="text" id="tipoRiscoQuimico" placeholder="Ex: Mercúrio, Resinas"></div>
+                    <div class="form-group"><label for="localRiscoQuimico">Local de Uso:</label><input type="text" id="localRiscoQuimico" placeholder="Ex: Sala de manipulação"></div>
+                    <div class="form-group"><label for="medidasControleQuimico">Medidas de Controle:</label><textarea id="medidasControleQuimico" placeholder="Ex: Ventilação, EPIs"></textarea></div>
+                    <button type="submit">Adicionar Risco Químico</button>
+                </form>
+                <table id="riscos-quimicos-table">
+                    <thead><tr><th>Substância</th><th>Local</th><th>Controle</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+                <h3>Riscos Biológicos</h3>
+                <form id="form-riscos-biologicos">
+                    <div class="form-group"><label for="agenteRiscoBiologico">Agente:</label><input type="text" id="agenteRiscoBiologico" placeholder="Ex: Vírus, Bactérias"></div>
+                    <div class="form-group"><label for="tarefaRiscoBiologico">Tarefas de Risco:</label><input type="text" id="tarefaRiscoBiologico" placeholder="Ex: Manuseio de instrumentos"></div>
+                    <div class="form-group"><label for="medidasControleBiologico">Medidas de Controle:</label><textarea id="medidasControleBiologico" placeholder="Ex: Esterilização, Vacinação"></textarea></div>
+                    <button type="submit">Adicionar Risco Biológico</button>
+                </form>
+                <table id="riscos-biologicos-table">
+                    <thead><tr><th>Agente</th><th>Tarefas</th><th>Controle</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+                <h3>Riscos Ergonômicos</h3>
+                <form id="form-riscos-ergonomicos">
+                    <div class="form-group"><label for="tipoRiscoErgonomico">Tipo:</label><input type="text" id="tipoRiscoErgonomico" placeholder="Ex: Postura inadequada"></div>
+                    <div class="form-group"><label for="atividadeRiscoErgonomico">Atividade:</label><input type="text" id="atividadeRiscoErgonomico" placeholder="Ex: Procedimentos longos"></div>
+                    <div class="form-group"><label for="medidasControleErgonomico">Medidas de Controle:</label><textarea id="medidasControleErgonomico" placeholder="Ex: Cadeiras ergonômicas, pausas"></textarea></div>
+                    <button type="submit">Adicionar Risco Ergonômico</button>
+                </form>
+                <table id="riscos-ergonomicos-table">
+                    <thead><tr><th>Tipo</th><th>Atividade</th><th>Controle</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+
+                <h3>Riscos de Acidentes</h3>
+                <form id="form-riscos-acidentes">
+                    <div class="form-group"><label for="tipoRiscoAcidente">Tipo:</label><input type="text" id="tipoRiscoAcidente" placeholder="Ex: Quedas, Choque elétrico"></div>
+                    <div class="form-group"><label for="localRiscoAcidente">Local/Causa:</label><input type="text" id="localRiscoAcidente" placeholder="Ex: Pisos molhados, fiação"></div>
+                    <div class="form-group"><label for="medidasControleAcidente">Medidas de Controle:</label><textarea id="medidasControleAcidente" placeholder="Ex: Sinalização, manutenção"></textarea></div>
+                    <button type="submit">Adicionar Risco de Acidente</button>
+                </form>
+                <table id="riscos-acidentes-table">
+                    <thead><tr><th>Tipo</th><th>Local/Causa</th><th>Controle</th><th>Ações</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- 5. Plano de Ação -->
+            <section id="plano-acao" class="content-section">
+                <h2>Plano de Ação</h2>
+                <p>Acompanhe o status e os prazos das ações para itens pendentes ou de alto risco.</p>
+                <h3>Adicionar Nova Ação</h3>
+                <form id="form-plano-acao">
+                    <div class="form-group"><label for="descricaoAcao">Descrição da Ação:</label><textarea id="descricaoAcao" required></textarea></div>
+                    <div class="form-group"><label for="responsavelAcao">Responsável:</label><input type="text" id="responsavelAcao" required></div>
+                    <div class="form-group"><label for="prazoAcao">Prazo Final:</label><input type="date" id="prazoAcao" required></div>
+                    <div class="form-group">
+                        <label for="statusAcao">Status:</label>
+                        <select id="statusAcao">
+                            <option value="pendente">Pendente</option>
+                            <option value="em-progresso">Em Progresso</option>
+                            <option value="concluido">Concluído</option>
+                            <option value="atrasado">Atrasado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nivelRiscoAssociado">Nível de Risco Associado:</label>
+                        <select id="nivelRiscoAssociado">
+                            <option value="baixo">Baixo</option>
+                            <option value="medio">Médio</option>
+                            <option value="alto">Alto</option>
+                        </select>
+                    </div>
+                    <button type="submit">Adicionar Ação</button>
+                </form>
+                <h3>Ações Registradas</h3>
+                <table id="acoes-registradas-table">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Responsável</th>
+                            <th>Prazo</th>
+                            <th>Status</th>
+                            <th>Risco Associado</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 6. Gestão de Documentos -->
+            <section id="gestao-documentos" class="content-section">
+                <h2>Gestão de Documentos</h2>
+                <p>Faça o upload e armazene documentos importantes como laudos, atestados e fichas.</p>
+                <h3>Upload de Documentos</h3>
+                <form id="form-documentos">
+                    <div class="form-group">
+                        <label for="tipoDocumento">Tipo de Documento:</label>
+                        <select id="tipoDocumento">
+                            <option value="ltcat">LTCAT</option>
+                            <option value="pcmso">PCMSO</option>
+                            <option value="ppr">PPR</option>
+                            <option value="aso">ASO</option>
+                            <option value="epi">Ficha de EPI</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label for="nomeDocumento">Nome/Título:</label><input type="text" id="nomeDocumento" placeholder="Ex: LTCAT 2024"></div>
+                    <div class="form-group"><label for="dataEmissaoDoc">Data de Emissão:</label><input type="date" id="dataEmissaoDoc"></div>
+                    <div class="form-group"><label for="arquivoDocumento">Arquivo:</label><input type="file" id="arquivoDocumento" accept=".pdf,.doc,.docx,.jpg,.png" required></div>
+                    <button type="submit">Realizar Upload</button>
+                </form>
+                <h3>Documentos Armazenados</h3>
+                <table id="documentos-armazenados-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Título</th>
+                            <th>Data de Emissão</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 7. Relatórios e Dashboards -->
+            <section id="relatorios-dashboards" class="content-section">
+                <h2>Relatórios e Dashboards</h2>
+                <p>Visualize o status do PGR, identifique riscos críticos e acompanhe o progresso do plano de ação.</p>
+                <!-- Espaço para gráficos (requer biblioteca como Chart.js) -->
+            </section>
+
+            <!-- 8. Notificações -->
+            <section id="notificacoes" class="content-section">
+                <h2>Notificações</h2>
+                <p>Receba alertas sobre prazos próximos, ações pendentes e itens de alto risco.</p>
+                <ul class="alert-list" id="notificacoes-list">
+                    <!-- Notificações carregadas via JS -->
+                </ul>
+            </section>
+
+            <!-- 9. Perfis de Usuário -->
+            <section id="perfis-usuario" class="content-section">
+                <h2>Perfis de Usuário</h2>
+                <p>Gerencie os perfis e permissões dos usuários do sistema.</p>
+                <p>Esta funcionalidade exigiria um sistema de autenticação e autorização mais complexo, geralmente com um backend.</p>
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Sistema de Gestão de PGR. Todos os direitos reservados.</p>
+    </footer>
+
+    <!-- Link para o arquivo JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
