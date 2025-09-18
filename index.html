@@ -200,6 +200,36 @@
                     <thead><tr><th>Tipo</th><th>Local/Causa</th><th>Controle</th><th>Ações</th></tr></thead>
                     <tbody></tbody>
                 </table>
+
+                <h3>Riscos Psicossociais</h3>
+                <form id="form-riscos-psicossociais">
+                    <div class="form-group">
+                        <label for="fatorRiscoPsicossocial">Fator de Risco:</label>
+                        <input type="text" id="fatorRiscoPsicossocial" name="fatorRiscoPsicossocial" placeholder="Ex: Excesso de trabalho, Assédio, Estresse">
+                    </div>
+                    <div class="form-group">
+                        <label for="fonteRiscoPsicossocial">Fonte/Causa:</label>
+                        <input type="text" id="fonteRiscoPsicossocial" name="fonteRiscoPsicossocial" placeholder="Ex: Metas irrealistas, Falta de autonomia, Conflitos interpessoais">
+                    </div>
+                    <div class="form-group">
+                        <label for="medidasControlePsicossocial">Medidas de Controle Existentes:</label>
+                        <textarea id="medidasControlePsicossocial" name="medidasControlePsicossocial" placeholder="Ex: Canal de denúncias, Pesquisa de clima, Programas de bem-estar"></textarea>
+                    </div>
+                    <button type="submit">Adicionar Risco Psicossocial</button>
+                </form>
+                <table id="riscos-psicossociais-table">
+                    <thead>
+                        <tr>
+                            <th>Fator de Risco</th>
+                            <th>Fonte/Causa</th>
+                            <th>Medidas de Controle</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Riscos Psicossociais carregados via JS -->
+                    </tbody>
+                </table>
             </section>
 
             <!-- 5. Plano de Ação -->
@@ -319,4 +349,3 @@
     <script src="./app.js"></script>
 </body>
 </html>
-
