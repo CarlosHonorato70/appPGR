@@ -213,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { key: 'biologicos', formId: 'form-riscos-biologicos', tableId: 'riscos-biologicos-table', fields: ['agenteRiscoBiologico', 'tarefaRiscoBiologico', 'medidasControleBiologico'], row: item => `<td>${item.agenteRiscoBiologico}</td><td>${item.tarefaRiscoBiologico}</td><td>${item.medidasControleBiologico}</td>` },
             { key: 'ergonomicos', formId: 'form-riscos-ergonomicos', tableId: 'riscos-ergonomicos-table', fields: ['tipoRiscoErgonomico', 'atividadeRiscoErgonomico', 'medidasControleErgonomico'], row: item => `<td>${item.tipoRiscoErgonomico}</td><td>${item.atividadeRiscoErgonomico}</td><td>${item.medidasControleErgonomico}</td>` },
             { key: 'acidentes', formId: 'form-riscos-acidentes', tableId: 'riscos-acidentes-table', fields: ['tipoRiscoAcidente', 'localRiscoAcidente', 'medidasControleAcidente'], row: item => `<td>${item.tipoRiscoAcidente}</td><td>${item.localRiscoAcidente}</td><td>${item.medidasControleAcidente}</td>` },
+            { key: 'psicossociais', formId: 'form-riscos-psicossociais', tableId: 'riscos-psicossociais-table', fields: ['fatorRiscoPsicossocial', 'fonteRiscoPsicossocial', 'medidasControlePsicossocial'], row: item => `<td>${item.fatorRiscoPsicossocial}</td><td>${item.fonteRiscoPsicossocial}</td><td>${item.medidasControlePsicossocial}</td>` },
         ];
 
         riskTypes.forEach(type => {
@@ -248,105 +249,4 @@ document.addEventListener('DOMContentLoaded', () => {
             }),
             rowHtml: (item) => {
                 const statusClass = { 'pendente': 'status-pending', 'em-progresso': 'status-pending', 'concluido': 'status-verified', 'atrasado': 'status-high' }[item.statusAcao] || 'status-na';
-                const riscoClass = { 'baixo': 'status-low', 'medio': 'status-medium', 'alto': 'status-high' }[item.nivelRiscoAssociado] || 'status-na';
-                return `
-                    <td>${item.descricaoAcao}</td>
-                    <td>${item.responsavelAcao}</td>
-                    <td>${item.prazoAcao}</td>
-                    <td><span class="status-badge ${statusClass}">${item.statusAcao.replace('-', ' ')}</span></td>
-                    <td><span class="status-badge ${riscoClass}">${item.nivelRiscoAssociado}</span></td>
-                    <td><button data-id="${item.id}" class="delete-item">Excluir</button></td>
-                `;
-            }
-        });
-    }
-
-    // --- 6. Gestão de Documentos ---
-    function initGestaoDocumentos() {
-        setupCrud({
-            formId: 'form-documentos',
-            tableId: 'documentos-armazenados-table',
-            storageKey: 'pgr_documentos',
-            getFormData: () => ({
-                id: generateUniqueId(),
-                tipoDocumento: document.getElementById('tipoDocumento').value,
-                nomeDocumento: document.getElementById('nomeDocumento').value,
-                dataEmissaoDoc: document.getElementById('dataEmissaoDoc').value,
-                fileName: document.getElementById('arquivoDocumento').files[0]?.name || 'N/A'
-            }),
-            rowHtml: (item) => `
-                <td>${item.tipoDocumento}</td>
-                <td>${item.nomeDocumento}</td>
-                <td>${item.dataEmissaoDoc}</td>
-                <td><button data-id="${item.id}" class="delete-item">Excluir</button></td>
-            `
-        });
-    }
-
-    // --- 7. Dashboard e Notificações ---
-    function updateDashboard() {
-        const checklistItems = getStoredData('pgr_checklist');
-        const acoes = getStoredData('pgr_acoes');
-
-        // Riscos Críticos
-        const riscosCriticos = checklistItems.filter(item => item.risco === 'alto' && item.status === 'pendente').length;
-        document.getElementById('dashboard-riscos-criticos').textContent = riscosCriticos;
-
-        // Ações Pendentes
-        const acoesPendentes = acoes.filter(acao => acao.statusAcao !== 'concluido').length;
-        document.getElementById('dashboard-acoes-pendentes').textContent = acoesPendentes;
-
-        // Conformidade
-        const totalChecklist = checklistItems.filter(item => item.status !== 'na').length;
-        const verifiedChecklist = checklistItems.filter(item => item.status === 'verificado').length;
-        const conformidade = totalChecklist > 0 ? ((verifiedChecklist / totalChecklist) * 100).toFixed(0) : 100;
-        document.getElementById('dashboard-conformidade').textContent = `${conformidade}%`;
-
-        // Status Geral
-        const statusGeralEl = document.getElementById('dashboard-status-geral');
-        if (riscosCriticos > 0 || acoes.some(a => a.statusAcao === 'atrasado')) {
-            statusGeralEl.textContent = 'Crítico';
-            statusGeralEl.className = 'status-badge status-high';
-        } else if (acoesPendentes > 0 || conformidade < 100) {
-            statusGeralEl.textContent = 'Atenção';
-            statusGeralEl.className = 'status-badge status-pending';
-        } else {
-            statusGeralEl.textContent = 'Conforme';
-            statusGeralEl.className = 'status-badge status-verified';
-        }
-
-        // Próximos Prazos
-        const prazosBody = document.querySelector('#dashboard-prazos-table tbody');
-        prazosBody.innerHTML = '';
-        acoes.filter(a => a.statusAcao !== 'concluido' && a.prazoAcao)
-            .sort((a, b) => new Date(a.prazoAcao) - new Date(b.prazoAcao))
-            .slice(0, 3)
-            .forEach(acao => {
-                const statusClass = { 'pendente': 'status-pending', 'em-progresso': 'status-pending', 'atrasado': 'status-high' }[acao.statusAcao] || 'status-na';
-                const row = prazosBody.insertRow();
-                row.innerHTML = `
-                    <td>${acao.descricaoAcao}</td>
-                    <td>${new Date(acao.prazoAcao + 'T00:00:00').toLocaleDateString()}</td>
-                    <td>${acao.responsavelAcao}</td>
-                    <td><span class="status-badge ${statusClass}">${acao.statusAcao.replace('-', ' ')}</span></td>
-                `;
-            });
-
-        // Notificações
-        const notificacoesList = document.getElementById('notificacoes-list');
-        notificacoesList.innerHTML = '';
-        const addNotificacao = (text) => {
-            const li = document.createElement('li');
-            li.textContent = text;
-            notificacoesList.appendChild(li);
-        };
-        if (riscosCriticos > 0) addNotificacao(`ATENÇÃO: ${riscosCriticos} risco(s) crítico(s) identificado(s)!`);
-        const acoesAtrasadas = acoes.filter(a => a.statusAcao === 'atrasado').length;
-        if (acoesAtrasadas > 0) addNotificacao(`ALERTA: ${acoesAtrasadas} ação(ões) está(ão) atrasada(s)!`);
-        if (notificacoesList.children.length === 0) addNotificacao('Nenhuma notificação importante no momento.');
-    }
-
-    // --- Inicialização do App ---
-    // Ativa a aba do dashboard por padrão e carrega seus dados
-    document.querySelector('.nav-link[href="#dashboard"]').click();
-});
+                const riscoClass = { 'baixo': 'status-low', 'medio': 'status-medium',
