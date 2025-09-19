@@ -1,582 +1,69 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestão de PGR</title>
-    <!-- Link para o arquivo de estilos CSS -->
-    <link rel="stylesheet" href="./style.css">
-    <!-- Bibliotecas para exportação de relatórios - com fallbacks -->
-    <script>
-        // Fallbacks para quando as bibliotecas CDN não estão disponíveis
-        window.exportFallbacks = {
-            // Simple PDF export using print functionality
-            exportToPDF: function(element, filename) {
-                const originalTitle = document.title;
-                document.title = filename;
-                window.print();
-                document.title = originalTitle;
-            },
-            
-            // Simple CSV export
-            exportToCSV: function(data, filename) {
-                let csv = '';
-                data.forEach(row => {
-                    csv += row.join(',') + '\n';
-                });
-                
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                window.URL.revokeObjectURL(url);
-            }
-        };
-    </script>
-    <script src="libs/jspdf.umd.min.js"></script>
-    <script src="libs/html2pdf.bundle.min.js"></script>
-    <script src="libs/xlsx.full.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Exportação Local - Exemplo jsPDF, html2pdf, xlsx</title>
+  <!-- Bibliotecas JS locais -->
+  <script src="libs/jspdf.umd.min.js"></script>
+  <script src="libs/html2pdf.bundle.min.js"></script>
+  <script src="libs/xlsx.full.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            <div class="header-logo">
-                <img src="assets/images/black-belt-logo.svg" alt="Black Belt Consultoria" class="logo-header">
-            </div>
-            <div class="header-text">
-                <h1>Sistema de Gestão de PGR</h1>
-                <p>Gerencie e monitore o Programa de Gerenciamento de Riscos (PGR) em conformidade com a NR-01.</p>
-            </div>
-        </div>
-    </header>
+  <h1>Exportação Local - Exemplo jsPDF, html2pdf, xlsx</h1>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="login-logo">
-                <img src="assets/images/black-belt-logo.svg" alt="Black Belt Consultoria" class="logo-login">
-            </div>
-            <h2>Login - Sistema PGR</h2>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username">Usuário:</label>
-                    <input type="text" id="username" required placeholder="Digite seu usuário">
-                </div>
-                <div class="form-group">
-                    <label for="password">Senha:</label>
-                    <input type="password" id="password" required placeholder="Digite sua senha">
-                </div>
-                <button type="submit">Entrar</button>
-                <button type="button" id="show-register-btn" class="secondary-btn">Criar nova conta</button>
-                <p class="login-info">Usuário padrão: admin / Senha: admin123</p>
-            </form>
-        </div>
-    </div>
+  <button id="btn-pdf">Exportar PDF (jsPDF)</button>
+  <button id="btn-html2pdf">Exportar PDF (html2pdf)</button>
+  <button id="btn-xlsx">Exportar XLSX</button>
 
-    <!-- Registration Modal -->
-    <div id="register-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="login-logo">
-                <img src="assets/images/black-belt-logo.svg" alt="Black Belt Consultoria" class="logo-login">
-            </div>
-            <h2>Criar Nova Conta - Sistema PGR</h2>
-            <form id="register-form">
-                <div class="form-group">
-                    <label for="reg-username">Usuário:</label>
-                    <input type="text" id="reg-username" required placeholder="Digite um nome de usuário" minlength="3">
-                </div>
-                <div class="form-group">
-                    <label for="reg-fullname">Nome Completo:</label>
-                    <input type="text" id="reg-fullname" required placeholder="Digite seu nome completo">
-                </div>
-                <div class="form-group">
-                    <label for="reg-password">Senha:</label>
-                    <input type="password" id="reg-password" required placeholder="Digite uma senha (mínimo 6 caracteres)" minlength="6">
-                </div>
-                <div class="form-group">
-                    <label for="reg-password-confirm">Confirmar Senha:</label>
-                    <input type="password" id="reg-password-confirm" required placeholder="Digite a senha novamente">
-                </div>
-                <div class="form-buttons">
-                    <button type="submit">Criar Conta</button>
-                    <button type="button" id="cancel-register-btn" class="secondary-btn">Cancelar</button>
-                </div>
-                <div id="register-message" class="message" style="display: none;"></div>
-            </form>
-        </div>
-    </div>
+  <div id="conteudo" style="margin-top:20px; border:1px solid #ccc; padding:10px;">
+    <h2>Conteúdo para Exportação</h2>
+    <p>Este é um exemplo de conteúdo que pode ser exportado.</p>
+    <ul>
+      <li>Item 1</li>
+      <li>Item 2</li>
+      <li>Item 3</li>
+    </ul>
+  </div>
 
-    <div class="main-container" id="main-app" style="display: none;">
-        <nav>
-            <div class="user-info">
-                <span>Usuário: <span id="current-user">Admin</span></span>
-                <button id="logout-btn" class="logout-btn">Sair</button>
-            </div>
-            <ul>
-                <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
-                <li><a href="#gestao-unidades" class="nav-link">Gestão de Unidades</a></li>
-                <li><a href="#checklist-pgr" class="nav-link">Checklist Interativo do PGR</a></li>
-                <li><a href="#inventario-riscos" class="nav-link">Inventário de Riscos</a></li>
-                <li><a href="#plano-acao" class="nav-link">Plano de Ação</a></li>
-                <li><a href="#gestao-documentos" class="nav-link">Gestão de Documentos</a></li>
-                <li><a href="#relatorios-dashboards" class="nav-link">Relatórios e Dashboards</a></li>
-                <li><a href="#notificacoes" class="nav-link">Notificações</a></li>
-                <li><a href="#perfis-usuario" class="nav-link">Perfis de Usuário</a></li>
-            </ul>
-        </nav>
+  <script>
+    // jsPDF - PDF simples
+    document.getElementById('btn-pdf').onclick = function() {
+      if (typeof jsPDF !== 'undefined') {
+        const doc = new jsPDF();
+        doc.text('Exportado com jsPDF!', 10, 10);
+        doc.save('exemplo-jsPDF.pdf');
+      } else {
+        alert('jsPDF não está disponível. Esta implementação usa fallback para impressão.');
+        window.print();
+      }
+    };
 
-        <main>
-            <!-- 1. Dashboard -->
-            <section id="dashboard" class="content-section active">
-                <h2>Dashboard</h2>
-                <p>Bem-vindo(a) ao seu painel de controle do PGR. Aqui você tem uma visão geral rápida do status atual e dos pontos críticos.</p>
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <h4>Status Geral do PGR</h4>
-                        <p class="status-badge status-verified" id="dashboard-status-geral">Conforme</p>
-                    </div>
-                    <div class="dashboard-card">
-                        <h4>Riscos Críticos Identificados</h4>
-                        <p id="dashboard-riscos-criticos">0</p>
-                    </div>
-                    <div class="dashboard-card">
-                        <h4>Ações Pendentes</h4>
-                        <p id="dashboard-acoes-pendentes">0</p>
-                    </div>
-                    <div class="dashboard-card">
-                        <h4>Conformidade NR-01</h4>
-                        <p id="dashboard-conformidade">0%</p>
-                    </div>
-                </div>
-                <h3>Visão Rápida dos Próximos Prazos</h3>
-                <table id="dashboard-prazos-table">
-                    <thead>
-                        <tr>
-                            <th>Ação</th>
-                            <th>Prazo</th>
-                            <th>Responsável</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dados carregados via JS -->
-                    </tbody>
-                </table>
-            </section>
+    // html2pdf - exporta div para PDF
+    document.getElementById('btn-html2pdf').onclick = function() {
+      if (typeof html2pdf !== 'undefined') {
+        const elemento = document.getElementById('conteudo');
+        html2pdf().from(elemento).set({filename: 'exemplo-html2pdf.pdf'}).save();
+      } else {
+        alert('html2pdf não está disponível. Esta implementação usa fallback para impressão.');
+        window.print();
+      }
+    };
 
-            <!-- 2. Gestão de Unidades -->
-            <section id="gestao-unidades" class="content-section">
-                <h2>Gestão de Unidades</h2>
-                <p>Aqui você pode cadastrar e gerenciar os dados de identificação das unidades de trabalho.</p>
-                <h3>Cadastrar Nova Unidade</h3>
-                <form id="form-unidade">
-                    <div class="form-group">
-                        <label for="nomeUnidade">Nome da Unidade:</label>
-                        <input type="text" id="nomeUnidade" name="nomeUnidade" placeholder="Ex: Unidade Central" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="cnpjUnidade">CNPJ/CPF:</label>
-                        <input type="text" id="cnpjUnidade" name="cnpjUnidade" placeholder="00.000.000/0000-00 ou CPF" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="enderecoUnidade">Endereço:</label>
-                        <input type="text" id="enderecoUnidade" name="enderecoUnidade" placeholder="Rua Exemplo, 123" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="responsavelLegalUnidade">Responsável Legal:</label>
-                        <input type="text" id="responsavelLegalUnidade" name="responsavelLegalUnidade" placeholder="Nome Completo do Responsável" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="contatoUnidade">Telefone/Email:</label>
-                        <input type="text" id="contatoUnidade" name="contatoUnidade" placeholder="(00) 90000-0000 / email@exemplo.com">
-                    </div>
-                    <button type="submit">Cadastrar Unidade</button>
-                </form>
-                <h3>Unidades Cadastradas</h3>
-                <table id="unidades-cadastradas-table">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>CNPJ/CPF</th>
-                            <th>Responsável</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dados carregados via JS -->
-                    </tbody>
-                </table>
-            </section>
-
-            <!-- 3. Checklist Interativo do PGR -->
-            <section id="checklist-pgr" class="content-section">
-                <h2>Checklist Interativo do PGR</h2>
-                <p>Monitore os itens do Programa de Gerenciamento de Riscos.</p>
-                <table id="checklist-table">
-                    <thead>
-                        <tr>
-                            <th>Item do Checklist</th>
-                            <th>Status</th>
-                            <th>Evidências</th>
-                            <th>Responsável</th>
-                            <th>Prazo</th>
-                            <th>Nível de Risco</th>
-                            <th>Medidas de Controle</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Itens do checklist serão carregados/adicionados via JS -->
-                    </tbody>
-                </table>
-                <button id="add-checklist-item">Adicionar Novo Item ao Checklist</button>
-            </section>
-
-            <!-- 4. Inventário de Riscos -->
-            <section id="inventario-riscos" class="content-section">
-                <h2>Inventário de Riscos</h2>
-                <p>Detalhe e avalie os riscos presentes no ambiente de trabalho.</p>
-                
-                <h3>Riscos Físicos</h3>
-                <form id="form-riscos-fisicos">
-                    <div class="form-group"><label for="tipoRiscoFisico">Tipo de Risco:</label><input type="text" id="tipoRiscoFisico" placeholder="Ex: Ruído, Vibração"></div>
-                    <div class="form-group"><label for="fonteRiscoFisico">Fonte:</label><input type="text" id="fonteRiscoFisico" placeholder="Ex: Compressor"></div>
-                    <div class="form-group"><label for="exposicaoFisico">Nível de Exposição:</label><input type="text" id="exposicaoFisico" placeholder="Ex: 85 dB (A)"></div>
-                    <div class="form-group"><label for="medidasControleFisico">Medidas de Controle:</label><textarea id="medidasControleFisico" placeholder="Ex: Protetor auricular"></textarea></div>
-                    <button type="submit">Adicionar Risco Físico</button>
-                </form>
-                <table id="riscos-fisicos-table">
-                    <thead><tr><th>Tipo</th><th>Fonte</th><th>Exposição</th><th>Controle</th><th>Ações</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <h3>Riscos Químicos</h3>
-                <form id="form-riscos-quimicos">
-                    <div class="form-group"><label for="tipoRiscoQuimico">Substância:</label><input type="text" id="tipoRiscoQuimico" placeholder="Ex: Mercúrio, Resinas"></div>
-                    <div class="form-group"><label for="localRiscoQuimico">Local de Uso:</label><input type="text" id="localRiscoQuimico" placeholder="Ex: Sala de manipulação"></div>
-                    <div class="form-group"><label for="medidasControleQuimico">Medidas de Controle:</label><textarea id="medidasControleQuimico" placeholder="Ex: Ventilação, EPIs"></textarea></div>
-                    <button type="submit">Adicionar Risco Químico</button>
-                </form>
-                <table id="riscos-quimicos-table">
-                    <thead><tr><th>Substância</th><th>Local</th><th>Controle</th><th>Ações</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <h3>Riscos Biológicos</h3>
-                <form id="form-riscos-biologicos">
-                    <div class="form-group"><label for="agenteRiscoBiologico">Agente:</label><input type="text" id="agenteRiscoBiologico" placeholder="Ex: Vírus, Bactérias"></div>
-                    <div class="form-group"><label for="tarefaRiscoBiologico">Tarefas de Risco:</label><input type="text" id="tarefaRiscoBiologico" placeholder="Ex: Manuseio de instrumentos"></div>
-                    <div class="form-group"><label for="medidasControleBiologico">Medidas de Controle:</label><textarea id="medidasControleBiologico" placeholder="Ex: Esterilização, Vacinação"></textarea></div>
-                    <button type="submit">Adicionar Risco Biológico</button>
-                </form>
-                <table id="riscos-biologicos-table">
-                    <thead><tr><th>Agente</th><th>Tarefas</th><th>Controle</th><th>Ações</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <h3>Riscos Ergonômicos</h3>
-                <form id="form-riscos-ergonomicos">
-                    <div class="form-group"><label for="tipoRiscoErgonomico">Tipo:</label><input type="text" id="tipoRiscoErgonomico" placeholder="Ex: Postura inadequada"></div>
-                    <div class="form-group"><label for="atividadeRiscoErgonomico">Atividade:</label><input type="text" id="atividadeRiscoErgonomico" placeholder="Ex: Procedimentos longos"></div>
-                    <div class="form-group"><label for="medidasControleErgonomico">Medidas de Controle:</label><textarea id="medidasControleErgonomico" placeholder="Ex: Cadeiras ergonômicas, pausas"></textarea></div>
-                    <button type="submit">Adicionar Risco Ergonômico</button>
-                </form>
-                <table id="riscos-ergonomicos-table">
-                    <thead><tr><th>Tipo</th><th>Atividade</th><th>Controle</th><th>Ações</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <h3>Riscos de Acidentes</h3>
-                <form id="form-riscos-acidentes">
-                    <div class="form-group"><label for="tipoRiscoAcidente">Tipo:</label><input type="text" id="tipoRiscoAcidente" placeholder="Ex: Quedas, Choque elétrico"></div>
-                    <div class="form-group"><label for="localRiscoAcidente">Local/Causa:</label><input type="text" id="localRiscoAcidente" placeholder="Ex: Pisos molhados, fiação"></div>
-                    <div class="form-group"><label for="medidasControleAcidente">Medidas de Controle:</label><textarea id="medidasControleAcidente" placeholder="Ex: Sinalização, manutenção"></textarea></div>
-                    <button type="submit">Adicionar Risco de Acidente</button>
-                </form>
-                <table id="riscos-acidentes-table">
-                    <thead><tr><th>Tipo</th><th>Local/Causa</th><th>Controle</th><th>Ações</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-
-                <h3>Riscos Psicossociais</h3>
-                <form id="form-riscos-psicossociais">
-                    <div class="form-group">
-                        <label for="fatorRiscoPsicossocial">Fator de Risco:</label>
-                        <input type="text" id="fatorRiscoPsicossocial" name="fatorRiscoPsicossocial" placeholder="Ex: Excesso de trabalho, Assédio, Estresse">
-                    </div>
-                    <div class="form-group">
-                        <label for="fonteRiscoPsicossocial">Fonte/Causa:</label>
-                        <input type="text" id="fonteRiscoPsicossocial" name="fonteRiscoPsicossocial" placeholder="Ex: Metas irrealistas, Falta de autonomia, Conflitos interpessoais">
-                    </div>
-                    <div class="form-group">
-                        <label for="medidasControlePsicossocial">Medidas de Controle Existentes:</label>
-                        <textarea id="medidasControlePsicossocial" name="medidasControlePsicossocial" placeholder="Ex: Canal de denúncias, Pesquisa de clima, Programas de bem-estar"></textarea>
-                    </div>
-                    <button type="submit">Adicionar Risco Psicossocial</button>
-                </form>
-                <table id="riscos-psicossociais-table">
-                    <thead>
-                        <tr>
-                            <th>Fator de Risco</th>
-                            <th>Fonte/Causa</th>
-                            <th>Medidas de Controle</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Riscos Psicossociais carregados via JS -->
-                    </tbody>
-                </table>
-            </section>
-
-            <!-- 5. Plano de Ação -->
-            <section id="plano-acao" class="content-section">
-                <h2>Plano de Ação</h2>
-                <p>Acompanhe o status e os prazos das ações para itens pendentes ou de alto risco.</p>
-                <h3>Adicionar Nova Ação</h3>
-                <form id="form-plano-acao">
-                    <div class="form-group"><label for="descricaoAcao">Descrição da Ação:</label><textarea id="descricaoAcao" required></textarea></div>
-                    <div class="form-group"><label for="responsavelAcao">Responsável:</label><input type="text" id="responsavelAcao" required></div>
-                    <div class="form-group"><label for="prazoAcao">Prazo Final:</label><input type="date" id="prazoAcao" required></div>
-                    <div class="form-group">
-                        <label for="statusAcao">Status:</label>
-                        <select id="statusAcao">
-                            <option value="pendente">Pendente</option>
-                            <option value="em-progresso">Em Progresso</option>
-                            <option value="concluido">Concluído</option>
-                            <option value="atrasado">Atrasado</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="nivelRiscoAssociado">Nível de Risco Associado:</label>
-                        <select id="nivelRiscoAssociado">
-                            <option value="baixo">Baixo</option>
-                            <option value="medio">Médio</option>
-                            <option value="alto">Alto</option>
-                        </select>
-                    </div>
-                    <button type="submit">Adicionar Ação</button>
-                </form>
-                <h3>Ações Registradas</h3>
-                <table id="acoes-registradas-table">
-                    <thead>
-                        <tr>
-                            <th>Descrição</th>
-                            <th>Responsável</th>
-                            <th>Prazo</th>
-                            <th>Status</th>
-                            <th>Risco Associado</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dados carregados via JS -->
-                    </tbody>
-                </table>
-            </section>
-
-            <!-- 6. Gestão de Documentos -->
-            <section id="gestao-documentos" class="content-section">
-                <h2>Gestão de Documentos</h2>
-                <p>Faça o upload e armazene documentos importantes como laudos, atestados e fichas.</p>
-                <h3>Upload de Documentos</h3>
-                <form id="form-documentos">
-                    <div class="form-group">
-                        <label for="tipoDocumento">Tipo de Documento:</label>
-                        <select id="tipoDocumento">
-                            <option value="ltcat">LTCAT</option>
-                            <option value="pcmso">PCMSO</option>
-                            <option value="ppr">PPR</option>
-                            <option value="aso">ASO</option>
-                            <option value="epi">Ficha de EPI</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label for="nomeDocumento">Nome/Título:</label><input type="text" id="nomeDocumento" placeholder="Ex: LTCAT 2024"></div>
-                    <div class="form-group"><label for="dataEmissaoDoc">Data de Emissão:</label><input type="date" id="dataEmissaoDoc"></div>
-                    <div class="form-group"><label for="arquivoDocumento">Arquivo:</label><input type="file" id="arquivoDocumento" accept=".pdf,.doc,.docx,.jpg,.png" required></div>
-                    <button type="submit">Realizar Upload</button>
-                </form>
-                <h3>Documentos Armazenados</h3>
-                <table id="documentos-armazenados-table">
-                    <thead>
-                        <tr>
-                            <th>Tipo</th>
-                            <th>Título</th>
-                            <th>Data de Emissão</th>
-                            <th>Tamanho</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Dados carregados via JS -->
-                    </tbody>
-                </table>
-            </section>
-
-            <!-- 7. Relatórios e Dashboards -->
-            <section id="relatorios-dashboards" class="content-section">
-                <h2>Relatórios e Dashboards</h2>
-                <p>Visualize o status do PGR, identifique riscos críticos e acompanhe o progresso do plano de ação.</p>
-                
-                <div class="report-actions">
-                    <h3>Exportar Relatórios</h3>
-                    <div class="export-buttons">
-                        <button id="export-pdf" class="export-btn">
-                            <span>📄</span> Exportar Relatório Completo (PDF)
-                        </button>
-                        <button id="export-excel" class="export-btn">
-                            <span>📊</span> Exportar Dados (Excel)
-                        </button>
-                        <button id="print-report" class="export-btn">
-                            <span>🖨️</span> Imprimir Relatório
-                        </button>
-                    </div>
-                </div>
-
-                <div class="dashboard-summary" id="report-content">
-                    <h3>Resumo Executivo do PGR</h3>
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <h4>Status Geral</h4>
-                            <p class="status-value">Conforme</p>
-                        </div>
-                        <div class="summary-item">
-                            <h4>Total de Riscos Identificados</h4>
-                            <p class="status-value" id="total-riscos">0</p>
-                        </div>
-                        <div class="summary-item">
-                            <h4>Ações Pendentes</h4>
-                            <p class="status-value" id="total-acoes-pendentes">0</p>
-                        </div>
-                        <div class="summary-item">
-                            <h4>Conformidade</h4>
-                            <p class="status-value" id="percentual-conformidade">0%</p>
-                        </div>
-                    </div>
-
-                    <h4>Riscos por Categoria</h4>
-                    <table id="relatorio-riscos-tabela">
-                        <thead>
-                            <tr>
-                                <th>Categoria</th>
-                                <th>Quantidade</th>
-                                <th>Alto Risco</th>
-                                <th>Médio Risco</th>
-                                <th>Baixo Risco</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Físicos</td>
-                                <td id="count-fisicos">0</td>
-                                <td id="alto-fisicos">0</td>
-                                <td id="medio-fisicos">0</td>
-                                <td id="baixo-fisicos">0</td>
-                            </tr>
-                            <tr>
-                                <td>Químicos</td>
-                                <td id="count-quimicos">0</td>
-                                <td id="alto-quimicos">0</td>
-                                <td id="medio-quimicos">0</td>
-                                <td id="baixo-quimicos">0</td>
-                            </tr>
-                            <tr>
-                                <td>Biológicos</td>
-                                <td id="count-biologicos">0</td>
-                                <td id="alto-biologicos">0</td>
-                                <td id="medio-biologicos">0</td>
-                                <td id="baixo-biologicos">0</td>
-                            </tr>
-                            <tr>
-                                <td>Ergonômicos</td>
-                                <td id="count-ergonomicos">0</td>
-                                <td id="alto-ergonomicos">0</td>
-                                <td id="medio-ergonomicos">0</td>
-                                <td id="baixo-ergonomicos">0</td>
-                            </tr>
-                            <tr>
-                                <td>Acidentes</td>
-                                <td id="count-acidentes">0</td>
-                                <td id="alto-acidentes">0</td>
-                                <td id="medio-acidentes">0</td>
-                                <td id="baixo-acidentes">0</td>
-                            </tr>
-                            <tr>
-                                <td>Psicossociais</td>
-                                <td id="count-psicossociais">0</td>
-                                <td id="alto-psicossociais">0</td>
-                                <td id="medio-psicossociais">0</td>
-                                <td id="baixo-psicossociais">0</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h4>Plano de Ação - Status</h4>
-                    <table id="relatorio-acoes-tabela">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Quantidade</th>
-                                <th>Percentual</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Pendente</td>
-                                <td id="count-pendente">0</td>
-                                <td id="perc-pendente">0%</td>
-                            </tr>
-                            <tr>
-                                <td>Em Progresso</td>
-                                <td id="count-progresso">0</td>
-                                <td id="perc-progresso">0%</td>
-                            </tr>
-                            <tr>
-                                <td>Concluído</td>
-                                <td id="count-concluido">0</td>
-                                <td id="perc-concluido">0%</td>
-                            </tr>
-                            <tr>
-                                <td>Atrasado</td>
-                                <td id="count-atrasado">0</td>
-                                <td id="perc-atrasado">0%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- 8. Notificações -->
-            <section id="notificacoes" class="content-section">
-                <h2>Notificações</h2>
-                <p>Receba alertas sobre prazos próximos, ações pendentes e itens de alto risco.</p>
-                <ul class="alert-list" id="notificacoes-list">
-                    <!-- Notificações carregadas via JS -->
-                </ul>
-            </section>
-
-            <!-- 9. Perfis de Usuário -->
-            <section id="perfis-usuario" class="content-section">
-                <h2>Perfis de Usuário</h2>
-                <p>Gerencie os perfis e permissões dos usuários do sistema.</p>
-                <p>Esta funcionalidade exigiria um sistema de autenticação e autorização mais complexo, geralmente com um backend.</p>
-            </section>
-        </main>
-    </div>
-
-    <footer>
-        <div class="footer-content">
-            <div class="footer-logo">
-                <img src="assets/images/black-belt-logo.svg" alt="Black Belt Consultoria" class="logo-footer">
-            </div>
-            <p>&copy; 2025 Sistema de Gestão de PGR. Todos os direitos reservados.</p>
-        </div>
-    </footer>
-
-    <!-- Link para o arquivo JavaScript -->
-    <script src="./app.js"></script>
+    // XLSX - exporta tabela simples
+    document.getElementById('btn-xlsx').onclick = function() {
+      if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([
+          ['Nome', 'Idade'],
+          ['Carlos', 30],
+          ['Maria', 25]
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Pessoas');
+        XLSX.writeFile(wb, 'exemplo.xlsx');
+      } else {
+        alert('XLSX não está disponível.');
+      }
+    };
+  </script>
 </body>
 </html>
