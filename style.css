@@ -214,6 +214,72 @@ table button {
     color: #664d03;
 }
 
+/* Modal de Login */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-content h2 {
+    margin-bottom: 25px;
+    color: #2c3e50;
+}
+
+.login-info {
+    margin-top: 15px;
+    font-size: 0.9em;
+    color: #666;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 4px solid #1abc9c;
+}
+
+/* Informações do usuário na navegação */
+.user-info {
+    background-color: #2c3e50;
+    padding: 15px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #34495e;
+    text-align: center;
+    color: white;
+    font-size: 0.9em;
+}
+
+.logout-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.8em;
+    margin-left: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover {
+    background-color: #c0392b;
+}
+
 /* Rodapé */
 footer {
     text-align: center;

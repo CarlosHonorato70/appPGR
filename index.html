@@ -13,8 +13,31 @@
         <p>Gerencie e monitore o Programa de Gerenciamento de Riscos (PGR) em conformidade com a NR-01.</p>
     </header>
 
-    <div class="main-container">
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Login - Sistema PGR</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Usuário:</label>
+                    <input type="text" id="username" required placeholder="Digite seu usuário">
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" required placeholder="Digite sua senha">
+                </div>
+                <button type="submit">Entrar</button>
+                <p class="login-info">Usuário padrão: admin / Senha: admin123</p>
+            </form>
+        </div>
+    </div>
+
+    <div class="main-container" id="main-app" style="display: none;">
         <nav>
+            <div class="user-info">
+                <span>Usuário: <span id="current-user">Admin</span></span>
+                <button id="logout-btn" class="logout-btn">Sair</button>
+            </div>
             <ul>
                 <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
                 <li><a href="#gestao-unidades" class="nav-link">Gestão de Unidades</a></li>
