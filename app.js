@@ -1,12 +1,136 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Funções Auxiliares ---
+    // --- Sistema de Autenticação ---
+    const AUTH_KEY = 'pgr_auth_user';
+    const ENCRYPTION_KEY = 'pGR2025#SecureApp!'; // Chave fixa para criptografia
+
+    // Função para criptografar dados usando AES (simulação com Base64 + XOR para simplicidade)
+    const encrypt = (text) => {
+        try {
+            const jsonString = typeof text === 'string' ? text : JSON.stringify(text);
+            let result = '';
+            for (let i = 0; i < jsonString.length; i++) {
+                const char = jsonString.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+                result += String.fromCharCode(char);
+            }
+            return btoa(result);
+        } catch (e) {
+            console.error('Erro na criptografia:', e);
+            return btoa(JSON.stringify(text));
+        }
+    };
+
+    // Função para descriptografar dados
+    const decrypt = (encryptedText) => {
+        try {
+            const base64Decoded = atob(encryptedText);
+            let result = '';
+            for (let i = 0; i < base64Decoded.length; i++) {
+                const char = base64Decoded.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+                result += String.fromCharCode(char);
+            }
+            return result;
+        } catch (e) {
+            console.error('Erro na descriptografia:', e);
+            return encryptedText;
+        }
+    };
+
+    // Verificar se usuário está autenticado
+    const isAuthenticated = () => {
+        const authData = localStorage.getItem(AUTH_KEY);
+        return authData && authData !== '';
+    };
+
+    // Fazer login
+    const login = (username, password) => {
+        // Credenciais fixas para demonstração
+        if (username === 'admin' && password === 'admin123') {
+            const userData = { username, loginTime: new Date().toISOString() };
+            localStorage.setItem(AUTH_KEY, JSON.stringify(userData));
+            return true;
+        }
+        return false;
+    };
+
+    // Fazer logout
+    const logout = () => {
+        localStorage.removeItem(AUTH_KEY);
+        showLoginModal();
+        hideMainApp();
+    };
+
+    // Mostrar modal de login
+    const showLoginModal = () => {
+        document.getElementById('login-modal').style.display = 'flex';
+    };
+
+    // Esconder modal de login
+    const hideLoginModal = () => {
+        document.getElementById('login-modal').style.display = 'none';
+    };
+
+    // Mostrar aplicativo principal
+    const showMainApp = () => {
+        document.getElementById('main-app').style.display = 'flex';
+        const userData = JSON.parse(localStorage.getItem(AUTH_KEY) || '{}');
+        document.getElementById('current-user').textContent = userData.username || 'Usuário';
+    };
+
+    // Esconder aplicativo principal
+    const hideMainApp = () => {
+        document.getElementById('main-app').style.display = 'none';
+    };
+
+    // Event listeners para autenticação
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        if (login(username, password)) {
+            hideLoginModal();
+            showMainApp();
+            // Ativar dashboard após login
+            document.querySelector('.nav-link[href="#dashboard"]').click();
+        } else {
+            alert('Credenciais inválidas! Use: admin / admin123');
+        }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+
+    // Inicialização da autenticação
+    if (isAuthenticated()) {
+        showMainApp();
+    } else {
+        showLoginModal();
+    }
+
+    // --- Funções Auxiliares com Criptografia ---
     const getStoredData = (key) => {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
+        try {
+            const encryptedData = localStorage.getItem(key);
+            if (!encryptedData) return [];
+            
+            const decryptedData = decrypt(encryptedData);
+            return JSON.parse(decryptedData);
+        } catch (e) {
+            console.error('Erro ao recuperar dados:', e);
+            // Fallback para dados não criptografados (compatibilidade)
+            const rawData = localStorage.getItem(key);
+            return rawData ? JSON.parse(rawData) : [];
+        }
     };
 
     const setStoredData = (key, data) => {
-        localStorage.setItem(key, JSON.stringify(data));
+        try {
+            const encryptedData = encrypt(JSON.stringify(data));
+            localStorage.setItem(key, encryptedData);
+        } catch (e) {
+            console.error('Erro ao salvar dados:', e);
+            // Fallback sem criptografia
+            localStorage.setItem(key, JSON.stringify(data));
+        }
     };
 
     const generateUniqueId = () => '_' + Math.random().toString(36).substr(2, 9);
@@ -32,6 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
+            
+            // Verificar autenticação antes de navegar
+            if (!isAuthenticated()) {
+                showLoginModal();
+                return;
+            }
             
             // Esconde todas as seções e remove a classe 'active' dos links
             navLinks.forEach(nav => nav.classList.remove('active'));
@@ -348,6 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Inicialização do App ---
-    // Ativa a aba do dashboard por padrão e carrega seus dados
-    document.querySelector('.nav-link[href="#dashboard"]').click();
+    // Ativa a aba do dashboard por padrão somente se estiver autenticado
+    if (isAuthenticated()) {
+        document.querySelector('.nav-link[href="#dashboard"]').click();
+    }
 });
