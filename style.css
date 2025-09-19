@@ -11,6 +11,45 @@ header {
     padding: 16px 0;
     text-align: center;
 }
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.header-logo {
+    flex-shrink: 0;
+}
+
+.logo-header {
+    height: 50px;
+    width: auto;
+}
+
+.header-text {
+    flex: 1;
+    text-align: left;
+}
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .header-text {
+        text-align: center;
+    }
+    
+    .logo-header {
+        height: 40px;
+    }
+}
 nav {
     background: #fff;
     border-bottom: 1px solid #e6e6e6;
@@ -145,6 +184,16 @@ table th {
     max-width: 500px;
 }
 
+.login-logo {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.logo-login {
+    height: 60px;
+    width: auto;
+}
+
 .secondary-btn {
     background: #6c757d;
     color: #fff;
@@ -190,6 +239,37 @@ footer {
     color: #555;
     margin-top: 44px;
     border-top: 1px solid #e6e6e6;
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.footer-logo {
+    flex-shrink: 0;
+}
+
+.logo-footer {
+    height: 30px;
+    width: auto;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .footer-content {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .logo-footer {
+        height: 25px;
+    }
 }
 .alert-list {
     padding-left: 22px;
