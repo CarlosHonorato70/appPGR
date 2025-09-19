@@ -153,7 +153,92 @@ class PGRStorage {
 // Instância global do storage
 const pgrStorage = new PGRStorage();
 
+// Função de inicialização principal
+function inicializarAppCompleto() {
+    configurarGestaoDocumentos();
+    configurarExportacao();
+    carregarDocumentosArmazenados();
+    atualizarRelatorios();
+    configurarMascarasInput();
+    configurarGestaoUnidades(); // Adicionar configuração de unidades
+    carregarUnidades(); // Carregar unidades existentes
+}
+
+// Fallback de inicialização - garante que funciona mesmo se DOMContentLoaded falhar
+function garantirInicializacao() {
+    const loginForm = document.getElementById('login-form');
+    const formUnidade = document.getElementById('form-unidade');
+    
+    // Se os elementos existem mas não têm handlers, configurar
+    if (loginForm && !loginForm._handlerAttached) {
+        console.log('Setting up login handler via fallback...');
+        setupLoginHandler();
+    }
+    
+    if (formUnidade && !formUnidade._handlerAttached) {
+        console.log('Setting up unit form handler via fallback...');
+        configurarGestaoUnidades();
+        carregarUnidades();
+    }
+}
+
+// Configurar handler de login
+function setupLoginHandler() {
+    const loginForm = document.getElementById('login-form');
+    const loginModal = document.getElementById('login-modal');
+    const mainApp = document.getElementById('main-app');
+    const currentUserSpan = document.getElementById('current-user');
+    
+    if (loginForm && !loginForm._handlerAttached) {
+        loginForm._handlerAttached = true;
+        loginForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (username === 'admin' && password === 'admin123') {
+                loginModal.style.display = 'none';
+                mainApp.style.display = '';
+                currentUserSpan.textContent = 'Admin';
+                inicializarAppCompleto();
+                return;
+            }
+            
+            try {
+                const usuario = await pgrStorage.buscarUsuario(username);
+                if (usuario && usuario.password === password) {
+                    loginModal.style.display = 'none';
+                    mainApp.style.display = '';
+                    currentUserSpan.textContent = usuario.fullName || usuario.username;
+                    inicializarAppCompleto();
+                } else {
+                    alert('Usuário ou senha inválidos!');
+                }
+            } catch (error) {
+                console.error('Erro ao fazer login:', error);
+                alert('Erro ao fazer login. Tente novamente.');
+            }
+        });
+    }
+}
+
+// Executar garantirInicializacao periodicamente até que tudo esteja funcionando
+let initCheckInterval = setInterval(() => {
+    if (document.readyState === 'complete') {
+        garantirInicializacao();
+        // Parar de verificar após alguns segundos
+        setTimeout(() => {
+            if (initCheckInterval) {
+                clearInterval(initCheckInterval);
+                initCheckInterval = null;
+            }
+        }, 5000);
+    }
+}, 100);
+
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('DOMContentLoaded event fired');
+    
     // Login Modal
     const loginModal = document.getElementById('login-modal');
     const loginForm = document.getElementById('login-form');
@@ -162,36 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const currentUserSpan = document.getElementById('current-user');
 
     // Login com suporte a múltiplos usuários
-    loginForm.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        
-        // Verificar usuário admin padrão primeiro (compatibilidade)
-        if (username === 'admin' && password === 'admin123') {
-            loginModal.style.display = 'none';
-            mainApp.style.display = '';
-            currentUserSpan.textContent = 'Admin';
-            inicializarSistema();
-            return;
-        }
-        
-        // Verificar usuários cadastrados
-        try {
-            const usuario = await pgrStorage.buscarUsuario(username);
-            if (usuario && usuario.password === password) {
-                loginModal.style.display = 'none';
-                mainApp.style.display = '';
-                currentUserSpan.textContent = usuario.fullName || usuario.username;
-                inicializarSistema();
-            } else {
-                alert('Usuário ou senha inválidos!');
-            }
-        } catch (error) {
-            console.error('Erro ao fazer login:', error);
-            alert('Erro ao fazer login. Tente novamente.');
-        }
-    });
+    setupLoginHandler();
 
     logoutBtn.addEventListener('click', function () {
         mainApp.style.display = 'none';
@@ -320,13 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Inicializar sistema após login
     function inicializarSistema() {
-        configurarGestaoDocumentos();
-        configurarExportacao();
-        carregarDocumentosArmazenados();
-        atualizarRelatorios();
-        configurarMascarasInput();
-        configurarGestaoUnidades(); // Adicionar configuração de unidades
-        carregarUnidades(); // Carregar unidades existentes
+        inicializarAppCompleto(); // Use the main initialization function
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -948,3 +998,62 @@ document.addEventListener('DOMContentLoaded', function () {
         tbody.appendChild(tr);
     });
 });
+
+// Debug: Verify script execution
+console.log('App.js loaded successfully');
+
+// Debug: Add manual initialization function
+window.debugInit = function() {
+    console.log('Manual initialization started');
+    
+    if (typeof PGRStorage !== 'undefined' && !window.pgrStorage) {
+        console.log('Creating pgrStorage...');
+        window.pgrStorage = new PGRStorage();
+    }
+    
+    // Manually attach event listeners
+    const loginForm = document.getElementById('login-form');
+    const formUnidade = document.getElementById('form-unidade');
+    
+    console.log('Elements found:', {
+        loginForm: !!loginForm,
+        formUnidade: !!formUnidade,
+        mainApp: !!document.getElementById('main-app')
+    });
+    
+    if (loginForm && !loginForm._listenerAttached) {
+        loginForm._listenerAttached = true;
+        loginForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (username === 'admin' && password === 'admin123') {
+                console.log('Admin login successful');
+                const loginModal = document.getElementById('login-modal');
+                const mainApp = document.getElementById('main-app');
+                const currentUserSpan = document.getElementById('current-user');
+                
+                if (loginModal && mainApp && currentUserSpan) {
+                    loginModal.style.display = 'none';
+                    mainApp.style.display = '';
+                    currentUserSpan.textContent = 'Admin';
+                    
+                    // Initialize unit form
+                    if (formUnidade && typeof configurarGestaoUnidades === 'function') {
+                        configurarGestaoUnidades();
+                        carregarUnidades();
+                    }
+                    
+                    if (typeof configurarMascarasInput === 'function') {
+                        configurarMascarasInput();
+                    }
+                }
+            } else {
+                alert('Usuário ou senha inválidos!');
+            }
+        });
+    }
+    
+    console.log('Manual initialization completed');
+};
