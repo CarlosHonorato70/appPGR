@@ -1,5 +1,84 @@
 // Sistema de Gestão de PGR - app.js
 
+// Armazenamento local usando IndexedDB
+class PGRStorage {
+    constructor() {
+        this.dbName = 'pgrDB';
+        this.dbVersion = 1;
+        this.db = null;
+        this.initDB();
+    }
+
+    async initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve(this.db);
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Store para documentos
+                if (!db.objectStoreNames.contains('documentos')) {
+                    const documentosStore = db.createObjectStore('documentos', { keyPath: 'id', autoIncrement: true });
+                    documentosStore.createIndex('tipo', 'tipo', { unique: false });
+                    documentosStore.createIndex('nome', 'nome', { unique: false });
+                }
+                
+                // Store para dados do sistema
+                if (!db.objectStoreNames.contains('dados')) {
+                    const dadosStore = db.createObjectStore('dados', { keyPath: 'tipo' });
+                }
+            };
+        });
+    }
+
+    async salvarDocumento(documento) {
+        const transaction = this.db.transaction(['documentos'], 'readwrite');
+        const store = transaction.objectStore('documentos');
+        return store.add(documento);
+    }
+
+    async listarDocumentos() {
+        const transaction = this.db.transaction(['documentos'], 'readonly');
+        const store = transaction.objectStore('documentos');
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async excluirDocumento(id) {
+        const transaction = this.db.transaction(['documentos'], 'readwrite');
+        const store = transaction.objectStore('documentos');
+        return store.delete(id);
+    }
+
+    async salvarDados(tipo, dados) {
+        const transaction = this.db.transaction(['dados'], 'readwrite');
+        const store = transaction.objectStore('dados');
+        return store.put({ tipo, dados });
+    }
+
+    async obterDados(tipo) {
+        const transaction = this.db.transaction(['dados'], 'readonly');
+        const store = transaction.objectStore('dados');
+        return new Promise((resolve, reject) => {
+            const request = store.get(tipo);
+            request.onsuccess = () => resolve(request.result ? request.result.dados : []);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+// Instância global do storage
+const pgrStorage = new PGRStorage();
+
 document.addEventListener('DOMContentLoaded', function () {
     // Login Modal
     const loginModal = document.getElementById('login-modal');
@@ -17,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
             loginModal.style.display = 'none';
             mainApp.style.display = '';
             currentUserSpan.textContent = 'Admin';
+            inicializarSistema();
         } else {
             alert('Usuário ou senha inválidos!');
         }
@@ -37,8 +117,299 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
             const id = link.getAttribute('href').replace('#', '');
             document.getElementById(id).classList.add('active');
+            
+            // Atualizar dados se entrar na seção de relatórios
+            if (id === 'relatorios-dashboards') {
+                atualizarRelatorios();
+            } else if (id === 'gestao-documentos') {
+                carregarDocumentosArmazenados();
+            }
         });
     });
+
+    // Inicializar sistema após login
+    function inicializarSistema() {
+        configurarGestaoDocumentos();
+        configurarExportacao();
+        carregarDocumentosArmazenados();
+        atualizarRelatorios();
+    }
+
+    // Gestão de Documentos
+    function configurarGestaoDocumentos() {
+        const formDocumentos = document.getElementById('form-documentos');
+        
+        formDocumentos.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const tipo = document.getElementById('tipoDocumento').value;
+            const nome = document.getElementById('nomeDocumento').value;
+            const dataEmissao = document.getElementById('dataEmissaoDoc').value;
+            const arquivoInput = document.getElementById('arquivoDocumento');
+            
+            if (!arquivoInput.files[0]) {
+                alert('Por favor, selecione um arquivo.');
+                return;
+            }
+            
+            const arquivo = arquivoInput.files[0];
+            
+            // Validar tamanho (máximo 10MB)
+            if (arquivo.size > 10 * 1024 * 1024) {
+                alert('O arquivo é muito grande. Máximo permitido: 10MB');
+                return;
+            }
+            
+            // Converter arquivo para base64
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const documento = {
+                    tipo: tipo,
+                    nome: nome || arquivo.name,
+                    dataEmissao: dataEmissao,
+                    nomeArquivo: arquivo.name,
+                    tipoArquivo: arquivo.type,
+                    tamanho: arquivo.size,
+                    conteudo: e.target.result,
+                    dataUpload: new Date().toISOString()
+                };
+                
+                try {
+                    await pgrStorage.salvarDocumento(documento);
+                    alert('Documento salvo com sucesso!');
+                    formDocumentos.reset();
+                    carregarDocumentosArmazenados();
+                } catch (error) {
+                    console.error('Erro ao salvar documento:', error);
+                    alert('Erro ao salvar documento. Tente novamente.');
+                }
+            };
+            
+            reader.readAsDataURL(arquivo);
+        });
+    }
+
+    // Carregar documentos armazenados
+    async function carregarDocumentosArmazenados() {
+        try {
+            const documentos = await pgrStorage.listarDocumentos();
+            const tbody = document.querySelector('#documentos-armazenados-table tbody');
+            tbody.innerHTML = '';
+            
+            documentos.forEach(doc => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${doc.tipo.toUpperCase()}</td>
+                    <td>${doc.nome}</td>
+                    <td>${doc.dataEmissao ? new Date(doc.dataEmissao).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td class="file-info">${formatarTamanho(doc.tamanho)}</td>
+                    <td>
+                        <div class="document-actions">
+                            <button class="btn-small btn-download" onclick="baixarDocumento(${doc.id})">
+                                📥 Baixar
+                            </button>
+                            <button class="btn-small btn-delete" onclick="excluirDocumento(${doc.id})">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+        } catch (error) {
+            console.error('Erro ao carregar documentos:', error);
+        }
+    }
+
+    // Funções globais para manipulação de documentos
+    window.baixarDocumento = async function(id) {
+        try {
+            const documentos = await pgrStorage.listarDocumentos();
+            const documento = documentos.find(doc => doc.id === id);
+            
+            if (documento) {
+                const link = document.createElement('a');
+                link.href = documento.conteudo;
+                link.download = documento.nomeArquivo;
+                link.click();
+            }
+        } catch (error) {
+            console.error('Erro ao baixar documento:', error);
+            alert('Erro ao baixar documento.');
+        }
+    };
+
+    window.excluirDocumento = async function(id) {
+        if (confirm('Tem certeza que deseja excluir este documento?')) {
+            try {
+                await pgrStorage.excluirDocumento(id);
+                alert('Documento excluído com sucesso!');
+                carregarDocumentosArmazenados();
+            } catch (error) {
+                console.error('Erro ao excluir documento:', error);
+                alert('Erro ao excluir documento.');
+            }
+        }
+    };
+
+    // Configurar exportação de relatórios
+    function configurarExportacao() {
+        document.getElementById('export-pdf').addEventListener('click', exportarPDF);
+        document.getElementById('export-excel').addEventListener('click', exportarExcel);
+        document.getElementById('print-report').addEventListener('click', imprimirRelatorio);
+    }
+
+    // Exportar para PDF
+    function exportarPDF() {
+        const elemento = document.getElementById('report-content');
+        const opt = {
+            margin: 1,
+            filename: `relatorio-pgr-${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        // Usar html2pdf se disponível
+        if (typeof html2pdf !== 'undefined') {
+            html2pdf().from(elemento).set(opt).save();
+        } else {
+            // Fallback: usar funcionalidade de impressão
+            alert('Biblioteca PDF não disponível. Redirecionando para função de impressão como alternativa.');
+            imprimirRelatorio();
+        }
+    }
+
+    // Exportar para Excel
+    function exportarExcel() {
+        try {
+            // Coletar dados das tabelas
+            const dadosCSV = [];
+            
+            // Cabeçalho do relatório
+            dadosCSV.push(['Resumo Executivo do PGR']);
+            dadosCSV.push(['']);
+            dadosCSV.push(['Status Geral', document.querySelector('#report-content .status-value').textContent]);
+            dadosCSV.push(['Total de Riscos', document.getElementById('total-riscos').textContent]);
+            dadosCSV.push(['Ações Pendentes', document.getElementById('total-acoes-pendentes').textContent]);
+            dadosCSV.push(['Conformidade', document.getElementById('percentual-conformidade').textContent]);
+            dadosCSV.push(['']);
+            dadosCSV.push(['Riscos por Categoria']);
+            dadosCSV.push(['Categoria', 'Quantidade', 'Alto Risco', 'Médio Risco', 'Baixo Risco']);
+            
+            // Dados da tabela de riscos
+            const tabelaRiscos = document.querySelector('#relatorio-riscos-tabela tbody');
+            const linhasRiscos = tabelaRiscos.querySelectorAll('tr');
+            linhasRiscos.forEach(linha => {
+                const colunas = linha.querySelectorAll('td');
+                const dadosLinha = Array.from(colunas).map(col => col.textContent);
+                dadosCSV.push(dadosLinha);
+            });
+            
+            dadosCSV.push(['']);
+            dadosCSV.push(['Status das Ações']);
+            dadosCSV.push(['Status', 'Quantidade', 'Percentual']);
+            
+            // Dados da tabela de ações
+            const tabelaAcoes = document.querySelector('#relatorio-acoes-tabela tbody');
+            const linhasAcoes = tabelaAcoes.querySelectorAll('tr');
+            linhasAcoes.forEach(linha => {
+                const colunas = linha.querySelectorAll('td');
+                const dadosLinha = Array.from(colunas).map(col => col.textContent);
+                dadosCSV.push(dadosLinha);
+            });
+
+            // Tentar usar XLSX se disponível
+            if (typeof XLSX !== 'undefined') {
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(dadosCSV);
+                XLSX.utils.book_append_sheet(wb, ws, 'Resumo PGR');
+                XLSX.writeFile(wb, `relatorio-pgr-${new Date().toISOString().split('T')[0]}.xlsx`);
+            } else {
+                // Fallback: exportar como CSV
+                const filename = `relatorio-pgr-${new Date().toISOString().split('T')[0]}.csv`;
+                window.exportFallbacks.exportToCSV(dadosCSV, filename);
+            }
+            
+        } catch (error) {
+            console.error('Erro ao exportar:', error);
+            alert('Erro ao exportar dados. As bibliotecas de exportação podem não estar disponíveis.');
+        }
+    }
+
+    // Imprimir relatório
+    function imprimirRelatorio() {
+        // Salvar seção atual
+        const secaoAtual = document.querySelector('.content-section.active');
+        
+        // Mostrar apenas a seção de relatórios
+        document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById('relatorios-dashboards').classList.add('active');
+        
+        // Imprimir
+        window.print();
+        
+        // Restaurar seção original
+        document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+        if (secaoAtual) {
+            secaoAtual.classList.add('active');
+        }
+    }
+
+    // Atualizar dados dos relatórios
+    async function atualizarRelatorios() {
+        // Simular dados ou carregar do storage
+        try {
+            // Aqui você pode carregar dados reais do sistema
+            // Por ora, vamos usar dados de exemplo
+            
+            const totalRiscos = Math.floor(Math.random() * 50) + 10;
+            const acoesPendentes = Math.floor(Math.random() * 20) + 5;
+            const conformidade = Math.floor(Math.random() * 30) + 70;
+            
+            document.getElementById('total-riscos').textContent = totalRiscos;
+            document.getElementById('total-acoes-pendentes').textContent = acoesPendentes;
+            document.getElementById('percentual-conformidade').textContent = conformidade + '%';
+            
+            // Atualizar tabela de riscos com dados aleatórios para demonstração
+            const categorias = ['fisicos', 'quimicos', 'biologicos', 'ergonomicos', 'acidentes', 'psicossociais'];
+            categorias.forEach(categoria => {
+                const total = Math.floor(Math.random() * 10) + 1;
+                const alto = Math.floor(Math.random() * 3);
+                const medio = Math.floor(Math.random() * 4) + 1;
+                const baixo = total - alto - medio;
+                
+                document.getElementById(`count-${categoria}`).textContent = total;
+                document.getElementById(`alto-${categoria}`).textContent = alto;
+                document.getElementById(`medio-${categoria}`).textContent = medio;
+                document.getElementById(`baixo-${categoria}`).textContent = baixo >= 0 ? baixo : 0;
+            });
+            
+            // Atualizar tabela de ações
+            const statusAcoes = ['pendente', 'progresso', 'concluido', 'atrasado'];
+            const totalAcoes = acoesPendentes + Math.floor(Math.random() * 30) + 10;
+            statusAcoes.forEach(status => {
+                const count = Math.floor(Math.random() * 10) + 1;
+                const percentual = Math.round((count / totalAcoes) * 100);
+                
+                document.getElementById(`count-${status}`).textContent = count;
+                document.getElementById(`perc-${status}`).textContent = percentual + '%';
+            });
+            
+        } catch (error) {
+            console.error('Erro ao atualizar relatórios:', error);
+        }
+    }
+
+    // Função auxiliar para formatar tamanho de arquivo
+    function formatarTamanho(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const tamanhos = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + tamanhos[i];
+    }
 
     // Exemplo: Adicionar item ao checklist
     document.getElementById('add-checklist-item').addEventListener('click', function () {
@@ -51,13 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td></td>
             <td>Médio</td>
             <td></td>
-            <td><button>Remover</button></td>`;
+            <td><button onclick="this.parentNode.parentNode.remove()">Remover</button></td>`;
         tbody.appendChild(tr);
     });
-
-    // Exportação para PDF (exemplo)
-    // Requer biblioteca como jsPDF ou html2pdf
-    // function exportToPDF() { ... }
-
-    // Outras funcionalidades JS podem ser adicionadas aqui
 });

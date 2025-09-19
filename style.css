@@ -154,3 +154,145 @@ footer {
 .alert-list {
     padding-left: 22px;
 }
+
+/* Estilos para exportação de relatórios */
+.report-actions {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    border: 1px solid #e9ecef;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.export-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s;
+}
+
+.export-btn:hover {
+    background: #218838;
+}
+
+.export-btn span {
+    font-size: 1.2em;
+}
+
+.dashboard-summary {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.summary-item h4 {
+    margin: 0 0 8px 0;
+    color: #495057;
+    font-size: 0.95em;
+}
+
+.status-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #2d89ef;
+    margin: 0;
+}
+
+/* Estilos para gestão de documentos */
+.document-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 0.85em;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-download {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-download:hover {
+    background: #138496;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+}
+
+.file-info {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+/* Estilos para impressão */
+@media print {
+    nav, .report-actions, .export-buttons {
+        display: none !important;
+    }
+    
+    .main-container {
+        box-shadow: none;
+        margin: 0;
+        padding: 20px;
+    }
+    
+    .dashboard-summary {
+        border: none;
+        padding: 0;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
+    
+    table {
+        border-collapse: collapse;
+    }
+    
+    table th, table td {
+        border: 1px solid #000 !important;
+        padding: 8px;
+    }
+}
