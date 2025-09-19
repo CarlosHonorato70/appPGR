@@ -4,7 +4,7 @@
 class PGRStorage {
     constructor() {
         this.dbName = 'pgrDB';
-        this.dbVersion = 1;
+        this.dbVersion = 2;
         this.db = null;
         this.initDB();
     }
@@ -32,6 +32,12 @@ class PGRStorage {
                 // Store para dados do sistema
                 if (!db.objectStoreNames.contains('dados')) {
                     const dadosStore = db.createObjectStore('dados', { keyPath: 'tipo' });
+                }
+                
+                // Store para usuários
+                if (!db.objectStoreNames.contains('users')) {
+                    const usersStore = db.createObjectStore('users', { keyPath: 'username' });
+                    usersStore.createIndex('username', 'username', { unique: true });
                 }
             };
         });
@@ -74,6 +80,32 @@ class PGRStorage {
             request.onerror = () => reject(request.error);
         });
     }
+
+    // Métodos para gerenciamento de usuários
+    async salvarUsuario(userData) {
+        const transaction = this.db.transaction(['users'], 'readwrite');
+        const store = transaction.objectStore('users');
+        return new Promise((resolve, reject) => {
+            const request = store.add(userData);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async buscarUsuario(username) {
+        const transaction = this.db.transaction(['users'], 'readonly');
+        const store = transaction.objectStore('users');
+        return new Promise((resolve, reject) => {
+            const request = store.get(username);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async verificarUsuarioExiste(username) {
+        const usuario = await this.buscarUsuario(username);
+        return !!usuario;
+    }
 }
 
 // Instância global do storage
@@ -87,18 +119,35 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
 
-    // Simples login
-    loginForm.addEventListener('submit', function (e) {
+    // Login com suporte a múltiplos usuários
+    loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        const username = document.getElementById('username').value;
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
+        
+        // Verificar usuário admin padrão primeiro (compatibilidade)
         if (username === 'admin' && password === 'admin123') {
             loginModal.style.display = 'none';
             mainApp.style.display = '';
             currentUserSpan.textContent = 'Admin';
             inicializarSistema();
-        } else {
-            alert('Usuário ou senha inválidos!');
+            return;
+        }
+        
+        // Verificar usuários cadastrados
+        try {
+            const usuario = await pgrStorage.buscarUsuario(username);
+            if (usuario && usuario.password === password) {
+                loginModal.style.display = 'none';
+                mainApp.style.display = '';
+                currentUserSpan.textContent = usuario.fullName || usuario.username;
+                inicializarSistema();
+            } else {
+                alert('Usuário ou senha inválidos!');
+            }
+        } catch (error) {
+            console.error('Erro ao fazer login:', error);
+            alert('Erro ao fazer login. Tente novamente.');
         }
     });
 
@@ -106,6 +155,106 @@ document.addEventListener('DOMContentLoaded', function () {
         mainApp.style.display = 'none';
         loginModal.style.display = '';
         loginForm.reset();
+    });
+
+    // Modais de Registro
+    const registerModal = document.getElementById('register-modal');
+    const registerForm = document.getElementById('register-form');
+    const showRegisterBtn = document.getElementById('show-register-btn');
+    const cancelRegisterBtn = document.getElementById('cancel-register-btn');
+    const registerMessage = document.getElementById('register-message');
+
+    // Mostrar modal de registro
+    showRegisterBtn.addEventListener('click', function () {
+        loginModal.style.display = 'none';
+        registerModal.style.display = '';
+        registerForm.reset();
+        hideMessage();
+    });
+
+    // Cancelar registro
+    cancelRegisterBtn.addEventListener('click', function () {
+        registerModal.style.display = 'none';
+        loginModal.style.display = '';
+        registerForm.reset();
+        hideMessage();
+    });
+
+    // Função para mostrar mensagens
+    function showMessage(text, type) {
+        registerMessage.textContent = text;
+        registerMessage.className = `message ${type}`;
+        registerMessage.style.display = 'block';
+    }
+
+    function hideMessage() {
+        registerMessage.style.display = 'none';
+    }
+
+    // Processamento do formulário de registro
+    registerForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('reg-username').value.trim();
+        const fullName = document.getElementById('reg-fullname').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const passwordConfirm = document.getElementById('reg-password-confirm').value;
+
+        // Validações
+        if (username.length < 3) {
+            showMessage('O nome de usuário deve ter pelo menos 3 caracteres.', 'error');
+            return;
+        }
+
+        if (password.length < 6) {
+            showMessage('A senha deve ter pelo menos 6 caracteres.', 'error');
+            return;
+        }
+
+        if (password !== passwordConfirm) {
+            showMessage('As senhas não coincidem.', 'error');
+            return;
+        }
+
+        // Verificar se usuário admin está sendo usado
+        if (username.toLowerCase() === 'admin') {
+            showMessage('O nome de usuário "admin" é reservado. Escolha outro nome.', 'error');
+            return;
+        }
+
+        try {
+            // Verificar se usuário já existe
+            const usuarioExiste = await pgrStorage.verificarUsuarioExiste(username);
+            if (usuarioExiste) {
+                showMessage('Este nome de usuário já está em uso. Escolha outro.', 'error');
+                return;
+            }
+
+            // Salvar novo usuário
+            const novoUsuario = {
+                username: username,
+                fullName: fullName,
+                password: password,
+                createdAt: new Date().toISOString()
+            };
+
+            await pgrStorage.salvarUsuario(novoUsuario);
+            showMessage('Conta criada com sucesso! Você pode fazer login agora.', 'success');
+
+            // Voltar para login após 2 segundos
+            setTimeout(() => {
+                registerModal.style.display = 'none';
+                loginModal.style.display = '';
+                registerForm.reset();
+                hideMessage();
+                // Pré-preencher o campo de usuário na tela de login
+                document.getElementById('username').value = username;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Erro ao criar conta:', error);
+            showMessage('Erro ao criar conta. Tente novamente.', 'error');
+        }
     });
 
     // Navegação entre seções
