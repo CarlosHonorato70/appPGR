@@ -272,6 +272,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 atualizarRelatorios();
             } else if (id === 'gestao-documentos') {
                 carregarDocumentosArmazenados();
+            } else if (id === 'gestao-unidades') {
+                carregarUnidadesArmazenadas();
             }
         });
     });
@@ -279,8 +281,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Inicializar sistema após login
     function inicializarSistema() {
         configurarGestaoDocumentos();
+        configurarGestaoUnidades();
         configurarExportacao();
         carregarDocumentosArmazenados();
+        carregarUnidadesArmazenadas();
         atualizarRelatorios();
         configurarMascarasInput();
     }
@@ -554,6 +558,264 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 console.error('Erro ao excluir documento:', error);
                 alert('Erro ao excluir documento.');
+            }
+        }
+    };
+
+    // Gestão de Unidades
+    function configurarGestaoUnidades() {
+        const formUnidades = document.getElementById('form-unidade');
+        
+        formUnidades.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const nome = document.getElementById('nomeUnidade').value.trim();
+            const cnpj = document.getElementById('cnpjUnidade').value.trim();
+            const endereco = document.getElementById('enderecoUnidade').value.trim();
+            const responsavel = document.getElementById('responsavelLegalUnidade').value.trim();
+            const contato = document.getElementById('contatoUnidade').value.trim();
+            
+            // Validações básicas
+            if (!nome || !cnpj || !endereco || !responsavel) {
+                mostrarMensagemUnidade('Por favor, preencha todos os campos obrigatórios.', 'error');
+                return;
+            }
+            
+            // Validar CNPJ
+            const cnpjField = document.getElementById('cnpjUnidade');
+            if (!validarCNPJ(cnpjField)) {
+                mostrarMensagemUnidade('Por favor, insira um CNPJ válido.', 'error');
+                return;
+            }
+            
+            const unidade = {
+                id: Date.now(), // ID simples baseado em timestamp
+                nome: nome,
+                cnpj: cnpj,
+                endereco: endereco,
+                responsavel: responsavel,
+                contato: contato,
+                dataCriacao: new Date().toISOString(),
+                ativa: true
+            };
+            
+            try {
+                // Obter unidades existentes
+                const unidadesExistentes = await pgrStorage.obterDados('unidades') || [];
+                
+                // Verificar se já existe unidade com mesmo CNPJ
+                const cnpjJaExiste = unidadesExistentes.find(u => u.cnpj === cnpj && u.ativa);
+                if (cnpjJaExiste) {
+                    mostrarMensagemUnidade('Já existe uma unidade cadastrada com este CNPJ.', 'error');
+                    return;
+                }
+                
+                // Adicionar nova unidade
+                unidadesExistentes.push(unidade);
+                
+                // Salvar no IndexedDB
+                await pgrStorage.salvarDados('unidades', unidadesExistentes);
+                
+                mostrarMensagemUnidade('Unidade cadastrada com sucesso!', 'success');
+                formUnidades.reset();
+                carregarUnidadesArmazenadas();
+                
+            } catch (error) {
+                console.error('Erro ao salvar unidade:', error);
+                mostrarMensagemUnidade('Erro ao salvar unidade. Tente novamente.', 'error');
+            }
+        });
+    }
+
+    // Carregar unidades armazenadas
+    async function carregarUnidadesArmazenadas() {
+        try {
+            const unidades = await pgrStorage.obterDados('unidades') || [];
+            const tbody = document.querySelector('#unidades-cadastradas-table tbody');
+            tbody.innerHTML = '';
+            
+            // Filtrar apenas unidades ativas
+            const unidadesAtivas = unidades.filter(u => u.ativa !== false);
+            
+            if (unidadesAtivas.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">
+                        Nenhuma unidade cadastrada
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                return;
+            }
+            
+            unidadesAtivas.forEach(unidade => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${unidade.nome}</td>
+                    <td>${unidade.cnpj}</td>
+                    <td>${unidade.responsavel}</td>
+                    <td>
+                        <div class="unit-actions">
+                            <button class="btn-small btn-edit" onclick="editarUnidade(${unidade.id})" title="Editar">
+                                ✏️ Editar
+                            </button>
+                            <button class="btn-small btn-delete" onclick="excluirUnidade(${unidade.id})" title="Excluir">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+        } catch (error) {
+            console.error('Erro ao carregar unidades:', error);
+            mostrarMensagemUnidade('Erro ao carregar unidades.', 'error');
+        }
+    }
+
+    // Função para mostrar mensagens específicas para unidades
+    function mostrarMensagemUnidade(texto, tipo) {
+        // Criar ou atualizar elemento de mensagem
+        let mensagemEl = document.getElementById('unidade-message');
+        if (!mensagemEl) {
+            mensagemEl = document.createElement('div');
+            mensagemEl.id = 'unidade-message';
+            mensagemEl.className = 'message';
+            
+            // Inserir após o formulário
+            const form = document.getElementById('form-unidade');
+            form.insertAdjacentElement('afterend', mensagemEl);
+        }
+        
+        mensagemEl.textContent = texto;
+        mensagemEl.className = `message ${tipo}`;
+        mensagemEl.style.display = 'block';
+        
+        // Remover mensagem após 5 segundos
+        setTimeout(() => {
+            if (mensagemEl && mensagemEl.parentNode) {
+                mensagemEl.style.display = 'none';
+            }
+        }, 5000);
+    }
+
+    // Funções globais para manipulação de unidades
+    window.editarUnidade = async function(id) {
+        try {
+            const unidades = await pgrStorage.obterDados('unidades') || [];
+            const unidade = unidades.find(u => u.id === id);
+            
+            if (unidade) {
+                // Preencher formulário com dados da unidade
+                document.getElementById('nomeUnidade').value = unidade.nome;
+                document.getElementById('cnpjUnidade').value = unidade.cnpj;
+                document.getElementById('enderecoUnidade').value = unidade.endereco;
+                document.getElementById('responsavelLegalUnidade').value = unidade.responsavel;
+                document.getElementById('contatoUnidade').value = unidade.contato || '';
+                
+                // Alterar o comportamento do botão de submit para atualização
+                const form = document.getElementById('form-unidade');
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                
+                submitBtn.textContent = 'Atualizar Unidade';
+                submitBtn.dataset.editingId = id;
+                
+                // Adicionar botão de cancelar edição
+                let cancelBtn = document.getElementById('cancel-edit-btn');
+                if (!cancelBtn) {
+                    cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'cancel-edit-btn';
+                    cancelBtn.type = 'button';
+                    cancelBtn.textContent = 'Cancelar Edição';
+                    cancelBtn.className = 'secondary-btn';
+                    cancelBtn.style.marginLeft = '10px';
+                    
+                    cancelBtn.addEventListener('click', function() {
+                        form.reset();
+                        submitBtn.textContent = originalText;
+                        delete submitBtn.dataset.editingId;
+                        cancelBtn.remove();
+                    });
+                    
+                    submitBtn.insertAdjacentElement('afterend', cancelBtn);
+                }
+                
+                // Modificar o handler do formulário temporariamente
+                form.removeEventListener('submit', form._originalHandler);
+                form._updateHandler = async function(e) {
+                    e.preventDefault();
+                    
+                    const nome = document.getElementById('nomeUnidade').value.trim();
+                    const cnpj = document.getElementById('cnpjUnidade').value.trim();
+                    const endereco = document.getElementById('enderecoUnidade').value.trim();
+                    const responsavel = document.getElementById('responsavelLegalUnidade').value.trim();
+                    const contato = document.getElementById('contatoUnidade').value.trim();
+                    
+                    if (!nome || !cnpj || !endereco || !responsavel) {
+                        mostrarMensagemUnidade('Por favor, preencha todos os campos obrigatórios.', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        const unidadesAtualizadas = await pgrStorage.obterDados('unidades') || [];
+                        const indice = unidadesAtualizadas.findIndex(u => u.id === parseInt(id));
+                        
+                        if (indice !== -1) {
+                            unidadesAtualizadas[indice] = {
+                                ...unidadesAtualizadas[indice],
+                                nome: nome,
+                                cnpj: cnpj,
+                                endereco: endereco,
+                                responsavel: responsavel,
+                                contato: contato,
+                                dataAtualizacao: new Date().toISOString()
+                            };
+                            
+                            await pgrStorage.salvarDados('unidades', unidadesAtualizadas);
+                            mostrarMensagemUnidade('Unidade atualizada com sucesso!', 'success');
+                            form.reset();
+                            submitBtn.textContent = originalText;
+                            delete submitBtn.dataset.editingId;
+                            cancelBtn.remove();
+                            carregarUnidadesArmazenadas();
+                            
+                            // Restaurar handler original
+                            form.removeEventListener('submit', form._updateHandler);
+                            configurarGestaoUnidades();
+                        }
+                    } catch (error) {
+                        console.error('Erro ao atualizar unidade:', error);
+                        mostrarMensagemUnidade('Erro ao atualizar unidade. Tente novamente.', 'error');
+                    }
+                };
+                
+                form.addEventListener('submit', form._updateHandler);
+                
+                // Scroll para o formulário
+                form.scrollIntoView({ behavior: 'smooth' });
+            }
+        } catch (error) {
+            console.error('Erro ao editar unidade:', error);
+            mostrarMensagemUnidade('Erro ao carregar dados da unidade.', 'error');
+        }
+    };
+
+    window.excluirUnidade = async function(id) {
+        if (confirm('Tem certeza que deseja excluir esta unidade?\n\nEsta ação não pode ser desfeita.')) {
+            try {
+                const unidades = await pgrStorage.obterDados('unidades') || [];
+                const unidadesAtualizadas = unidades.map(u => 
+                    u.id === id ? { ...u, ativa: false, dataExclusao: new Date().toISOString() } : u
+                );
+                
+                await pgrStorage.salvarDados('unidades', unidadesAtualizadas);
+                mostrarMensagemUnidade('Unidade excluída com sucesso!', 'success');
+                carregarUnidadesArmazenadas();
+            } catch (error) {
+                console.error('Erro ao excluir unidade:', error);
+                mostrarMensagemUnidade('Erro ao excluir unidade.', 'error');
             }
         }
     };
