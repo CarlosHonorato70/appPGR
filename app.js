@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarDocumentosArmazenados();
         atualizarRelatorios();
         configurarMascarasInput();
+        configurarFormularioUnidade();
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -289,6 +290,54 @@ document.addEventListener('DOMContentLoaded', function () {
         
         input.setCustomValidity('');
         return true;
+    }
+
+    // Configurar formulário de unidade com validação
+    function configurarFormularioUnidade() {
+        const formUnidade = document.getElementById('form-unidade');
+        
+        if (formUnidade) {
+            formUnidade.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const cnpjField = document.getElementById('cnpjUnidade');
+                const telefoneField = document.getElementById('contatoUnidade');
+                
+                // Validar CNPJ
+                const cnpjValido = validarCNPJ(cnpjField);
+                if (!cnpjValido) {
+                    alert('CNPJ inválido. Por favor, corrija o CNPJ antes de continuar.');
+                    cnpjField.focus();
+                    return;
+                }
+                
+                // Validar telefone se preenchido
+                if (telefoneField.value.trim() !== '') {
+                    const telefoneValido = validarTelefone(telefoneField);
+                    if (!telefoneValido) {
+                        alert('Telefone inválido. Por favor, corrija o telefone antes de continuar.');
+                        telefoneField.focus();
+                        return;
+                    }
+                }
+                
+                // Se chegou até aqui, os dados são válidos
+                const dadosUnidade = {
+                    nome: document.getElementById('nomeUnidade').value,
+                    cnpj: cnpjField.value,
+                    endereco: document.getElementById('enderecoUnidade').value,
+                    responsavel: document.getElementById('responsavelLegalUnidade').value,
+                    contato: telefoneField.value
+                };
+                
+                // Aqui você pode salvar os dados (exemplo básico com alert)
+                console.log('Dados da unidade válidos:', dadosUnidade);
+                alert('Unidade cadastrada com sucesso!');
+                
+                // Limpar formulário
+                formUnidade.reset();
+            });
+        }
     }
 
     // Gestão de Documentos
