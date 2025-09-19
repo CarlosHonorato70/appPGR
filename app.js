@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'inventario-riscos': initInventarioRiscos,
         'plano-acao': initPlanoAcao,
         'gestao-documentos': initGestaoDocumentos,
+        'relatorios-dashboards': initRelatorios,
         'dashboard': updateDashboard,
         'notificacoes': updateDashboard // Notificações são atualizadas junto com o dashboard
     };
@@ -49,9 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sectionInitializers[targetId] && !initializedSections.has(targetId)) {
                 sectionInitializers[targetId]();
                 initializedSections.add(targetId);
-            } else if (targetId === 'dashboard' || targetId === 'notificacoes') {
-                // Sempre atualiza o dashboard e as notificações ao visitá-los
-                updateDashboard();
+            } else if (targetId === 'dashboard' || targetId === 'notificacoes' || targetId === 'relatorios-dashboards') {
+                // Sempre atualiza o dashboard, notificações e relatórios ao visitá-los
+                if (targetId === 'dashboard' || targetId === 'notificacoes') {
+                    updateDashboard();
+                } else if (targetId === 'relatorios-dashboards') {
+                    updateReportData();
+                }
             }
         });
     });
@@ -284,7 +289,399 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 7. Dashboard e Notificações ---
+    // --- 7. Relatórios e PDF Export ---
+    function initRelatorios() {
+        updateReportData();
+        setupPDFExport();
+        
+        // Setup refresh button
+        const refreshBtn = document.getElementById('refresh-report-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', updateReportData);
+        }
+    }
+
+    function updateReportData() {
+        const checklistItems = getStoredData('pgr_checklist');
+        const acoes = getStoredData('pgr_acoes');
+        
+        // Resumo Executivo
+        const riscosCriticos = checklistItems.filter(item => item.risco === 'alto' && item.status === 'pendente').length;
+        const acoesPendentes = acoes.filter(acao => acao.statusAcao !== 'concluido').length;
+        const totalChecklist = checklistItems.filter(item => item.status !== 'na').length;
+        const verifiedChecklist = checklistItems.filter(item => item.status === 'verificado').length;
+        const conformidade = totalChecklist > 0 ? ((verifiedChecklist / totalChecklist) * 100).toFixed(0) : 100;
+        
+        document.getElementById('report-riscos-criticos').textContent = riscosCriticos;
+        document.getElementById('report-acoes-pendentes').textContent = acoesPendentes;
+        document.getElementById('report-conformidade').textContent = `${conformidade}%`;
+        
+        // Status Geral
+        const statusGeralEl = document.getElementById('report-status-geral');
+        if (statusGeralEl) {
+            if (riscosCriticos > 0 || acoes.some(a => a.statusAcao === 'atrasado')) {
+                statusGeralEl.textContent = 'Crítico';
+                statusGeralEl.className = 'status-badge status-high';
+            } else if (acoesPendentes > 0 || conformidade < 100) {
+                statusGeralEl.textContent = 'Atenção';
+                statusGeralEl.className = 'status-badge status-pending';
+            } else {
+                statusGeralEl.textContent = 'Conforme';
+                statusGeralEl.className = 'status-badge status-verified';
+            }
+        }
+
+        // Tabela do Checklist
+        const checklistTableBody = document.querySelector('#report-checklist-table tbody');
+        if (checklistTableBody) {
+            checklistTableBody.innerHTML = '';
+            checklistItems.slice(0, 10).forEach(item => { // Limitar a 10 itens principais
+                const row = checklistTableBody.insertRow();
+                const riscoClass = { 'baixo': 'status-low', 'medio': 'status-medium', 'alto': 'status-high' }[item.risco] || 'status-na';
+                const statusClass = { 'verificado': 'status-verified', 'pendente': 'status-pending', 'na': 'status-na' }[item.status] || 'status-na';
+                
+                row.innerHTML = `
+                    <td>${item.descricao || 'N/A'}</td>
+                    <td><span class="status-badge ${statusClass}">${item.status || 'N/A'}</span></td>
+                    <td>${item.responsavel || 'N/A'}</td>
+                    <td>${item.prazo ? new Date(item.prazo + 'T00:00:00').toLocaleDateString() : 'N/A'}</td>
+                    <td><span class="status-badge ${riscoClass}">${item.risco || 'N/A'}</span></td>
+                `;
+            });
+        }
+
+        // Resumo de Riscos por Categoria
+        const riskCategoriesList = document.getElementById('risk-categories-list');
+        if (riskCategoriesList) {
+            const riskTypes = ['fisicos', 'quimicos', 'biologicos', 'ergonomicos', 'acidentes', 'psicossociais'];
+            riskCategoriesList.innerHTML = '';
+            
+            riskTypes.forEach(type => {
+                const risks = getStoredData(`pgr_riscos_${type}`);
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                    <span class="risk-count">${risks.length}</span>
+                `;
+                riskCategoriesList.appendChild(li);
+            });
+        }
+
+        // Tabela de Ações
+        const acoesTableBody = document.querySelector('#report-acoes-table tbody');
+        if (acoesTableBody) {
+            acoesTableBody.innerHTML = '';
+            acoes.slice(0, 10).forEach(acao => { // Limitar a 10 ações principais
+                const row = acoesTableBody.insertRow();
+                const statusClass = { 'pendente': 'status-pending', 'em-progresso': 'status-pending', 'concluido': 'status-verified', 'atrasado': 'status-high' }[acao.statusAcao] || 'status-na';
+                const riscoClass = { 'baixo': 'status-low', 'medio': 'status-medium', 'alto': 'status-high' }[acao.nivelRiscoAssociado] || 'status-na';
+                
+                row.innerHTML = `
+                    <td>${acao.descricaoAcao || 'N/A'}</td>
+                    <td>${acao.responsavelAcao || 'N/A'}</td>
+                    <td><span class="status-badge ${statusClass}">${acao.statusAcao ? acao.statusAcao.replace('-', ' ') : 'N/A'}</span></td>
+                    <td>${acao.prazoAcao ? new Date(acao.prazoAcao + 'T00:00:00').toLocaleDateString() : 'N/A'}</td>
+                    <td><span class="status-badge ${riscoClass}">${acao.nivelRiscoAssociado || 'N/A'}</span></td>
+                `;
+            });
+        }
+    }
+
+    function setupPDFExport() {
+        const exportBtn = document.getElementById('export-pdf-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', generatePDFReport);
+        }
+    }
+
+    function generatePDFReport() {
+        // Criar uma nova janela para o relatório PDF
+        const reportWindow = window.open('', '_blank');
+        
+        // Dados do sistema
+        const checklistItems = getStoredData('pgr_checklist');
+        const acoes = getStoredData('pgr_acoes');
+        const currentDate = new Date().toLocaleDateString('pt-BR');
+        const currentTime = new Date().toLocaleTimeString('pt-BR');
+        
+        // Calcular métricas
+        const riscosCriticos = checklistItems.filter(item => item.risco === 'alto' && item.status === 'pendente').length;
+        const acoesPendentes = acoes.filter(acao => acao.statusAcao !== 'concluido').length;
+        const totalChecklist = checklistItems.filter(item => item.status !== 'na').length;
+        const verifiedChecklist = checklistItems.filter(item => item.status === 'verificado').length;
+        const conformidade = totalChecklist > 0 ? ((verifiedChecklist / totalChecklist) * 100).toFixed(0) : 100;
+        
+        // Determinar status geral
+        let statusGeral = 'Conforme';
+        if (riscosCriticos > 0 || acoes.some(a => a.statusAcao === 'atrasado')) {
+            statusGeral = 'Crítico';
+        } else if (acoesPendentes > 0 || conformidade < 100) {
+            statusGeral = 'Atenção';
+        }
+
+        // HTML do relatório
+        const reportHTML = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <title>Relatório PGR - ${currentDate}</title>
+            <style>
+                @media print {
+                    @page { 
+                        margin: 1cm; 
+                        size: A4;
+                    }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        font-size: 12px; 
+                        line-height: 1.4;
+                        color: #333;
+                    }
+                    .no-print { display: none; }
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #2c3e50;
+                    padding-bottom: 20px;
+                    margin-bottom: 30px;
+                }
+                .header h1 {
+                    color: #2c3e50;
+                    margin: 0;
+                    font-size: 24px;
+                }
+                .header p {
+                    margin: 5px 0;
+                    color: #666;
+                }
+                .section {
+                    margin-bottom: 30px;
+                    page-break-inside: avoid;
+                }
+                .section h2 {
+                    color: #2c3e50;
+                    border-bottom: 1px solid #1abc9c;
+                    padding-bottom: 5px;
+                    margin-bottom: 15px;
+                }
+                .metrics-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                    margin-bottom: 20px;
+                }
+                .metric-card {
+                    border: 1px solid #ddd;
+                    padding: 15px;
+                    border-radius: 5px;
+                    background-color: #f8f9fa;
+                }
+                .metric-card h4 {
+                    margin: 0 0 10px 0;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }
+                .metric-value {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #e74c3c;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                    vertical-align: top;
+                }
+                th {
+                    background-color: #f8f9fa;
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                .status-badge {
+                    padding: 3px 8px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                .status-verified { background-color: #d4edda; color: #155724; }
+                .status-pending { background-color: #fff3cd; color: #856404; }
+                .status-high { background-color: #f8d7da; color: #721c24; }
+                .status-low { background-color: #d1ecf1; color: #0c5460; }
+                .status-medium { background-color: #ffeaa7; color: #8e6f00; }
+                .footer {
+                    margin-top: 50px;
+                    text-align: center;
+                    font-size: 10px;
+                    color: #666;
+                    border-top: 1px solid #ddd;
+                    padding-top: 20px;
+                }
+                .print-btn {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    margin-bottom: 20px;
+                }
+                .print-btn:hover {
+                    background-color: #c0392b;
+                }
+                ul {
+                    padding-left: 20px;
+                }
+                li {
+                    margin-bottom: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="no-print">
+                <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+            </div>
+
+            <div class="header">
+                <h1>RELATÓRIO DO PGR</h1>
+                <p>Sistema de Gestão de PGR - Programa de Gerenciamento de Riscos</p>
+                <p><strong>Data de Geração:</strong> ${currentDate} às ${currentTime}</p>
+                <p><strong>Status Geral:</strong> <span class="metric-value">${statusGeral}</span></p>
+            </div>
+
+            <div class="section">
+                <h2>1. RESUMO EXECUTIVO</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>Conformidade NR-01</h4>
+                        <div class="metric-value">${conformidade}%</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Riscos Críticos</h4>
+                        <div class="metric-value">${riscosCriticos}</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Ações Pendentes</h4>
+                        <div class="metric-value">${acoesPendentes}</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Itens Verificados</h4>
+                        <div class="metric-value">${verifiedChecklist}/${totalChecklist}</div>
+                    </div>
+                </div>
+                
+                <h3>Indicadores Principais:</h3>
+                <ul>
+                    <li>Conformidade com NR-01: ${conformidade}%</li>
+                    <li>Total de riscos críticos identificados: ${riscosCriticos}</li>
+                    <li>Ações pendentes de execução: ${acoesPendentes}</li>
+                    <li>Itens do checklist verificados: ${verifiedChecklist} de ${totalChecklist}</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>2. STATUS DO CHECKLIST PGR</h2>
+                ${checklistItems.length > 0 ? `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Status</th>
+                            <th>Responsável</th>
+                            <th>Prazo</th>
+                            <th>Nível de Risco</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${checklistItems.slice(0, 20).map(item => `
+                        <tr>
+                            <td>${item.descricao || 'N/A'}</td>
+                            <td><span class="status-badge status-${item.status === 'verificado' ? 'verified' : item.status === 'pendente' ? 'pending' : 'na'}">${item.status || 'N/A'}</span></td>
+                            <td>${item.responsavel || 'N/A'}</td>
+                            <td>${item.prazo ? new Date(item.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+                            <td><span class="status-badge status-${item.risco || 'na'}">${item.risco || 'N/A'}</span></td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ` : '<p>Nenhum item no checklist encontrado.</p>'}
+            </div>
+
+            <div class="section">
+                <h2>3. INVENTÁRIO DE RISCOS</h2>
+                <h3>Resumo por Categoria:</h3>
+                <ul>
+                    <li>Riscos Físicos: ${getStoredData('pgr_riscos_fisicos').length} identificados</li>
+                    <li>Riscos Químicos: ${getStoredData('pgr_riscos_quimicos').length} identificados</li>
+                    <li>Riscos Biológicos: ${getStoredData('pgr_riscos_biologicos').length} identificados</li>
+                    <li>Riscos Ergonômicos: ${getStoredData('pgr_riscos_ergonomicos').length} identificados</li>
+                    <li>Riscos de Acidentes: ${getStoredData('pgr_riscos_acidentes').length} identificados</li>
+                    <li>Riscos Psicossociais: ${getStoredData('pgr_riscos_psicossociais').length} identificados</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>4. PLANO DE AÇÃO</h2>
+                ${acoes.length > 0 ? `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Responsável</th>
+                            <th>Status</th>
+                            <th>Prazo</th>
+                            <th>Nível de Risco</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${acoes.slice(0, 15).map(acao => `
+                        <tr>
+                            <td>${acao.descricaoAcao || 'N/A'}</td>
+                            <td>${acao.responsavelAcao || 'N/A'}</td>
+                            <td><span class="status-badge status-${acao.statusAcao === 'concluido' ? 'verified' : acao.statusAcao === 'atrasado' ? 'high' : 'pending'}">${acao.statusAcao ? acao.statusAcao.replace('-', ' ') : 'N/A'}</span></td>
+                            <td>${acao.prazoAcao ? new Date(acao.prazoAcao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+                            <td><span class="status-badge status-${acao.nivelRiscoAssociado || 'na'}">${acao.nivelRiscoAssociado || 'N/A'}</span></td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ` : '<p>Nenhuma ação registrada.</p>'}
+            </div>
+
+            <div class="footer">
+                <p><strong>DOCUMENTO CONFIDENCIAL</strong></p>
+                <p>Sistema de Gestão de PGR - Programa de Gerenciamento de Riscos</p>
+                <p>Este documento contém informações confidenciais e deve ser tratado de acordo com as políticas de segurança da informação.</p>
+                <p>Gerado automaticamente em ${currentDate} às ${currentTime}</p>
+            </div>
+        </body>
+        </html>
+        `;
+
+        // Escrever o HTML na nova janela
+        reportWindow.document.write(reportHTML);
+        reportWindow.document.close();
+        
+        // Focar na nova janela
+        reportWindow.focus();
+        
+        alert('Relatório aberto em nova janela. Use Ctrl+P ou Cmd+P para imprimir/salvar como PDF.');
+    }
+
+    // --- 8. Dashboard e Notificações ---
     function updateDashboard() {
         const checklistItems = getStoredData('pgr_checklist');
         const acoes = getStoredData('pgr_acoes');

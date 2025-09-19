@@ -320,7 +320,89 @@
             <section id="relatorios-dashboards" class="content-section">
                 <h2>Relatórios e Dashboards</h2>
                 <p>Visualize o status do PGR, identifique riscos críticos e acompanhe o progresso do plano de ação.</p>
-                <!-- Espaço para gráficos (requer biblioteca como Chart.js) -->
+                
+                <div class="report-actions">
+                    <button id="export-pdf-btn" class="export-btn">
+                        📄 Salvar como PDF
+                    </button>
+                    <button id="refresh-report-btn" class="refresh-btn">
+                        🔄 Atualizar Relatório
+                    </button>
+                </div>
+
+                <!-- Resumo Executivo -->
+                <div class="report-section" id="resumo-executivo">
+                    <h3>Resumo Executivo do PGR</h3>
+                    <div class="report-grid">
+                        <div class="report-card">
+                            <h4>Status Geral</h4>
+                            <p id="report-status-geral" class="status-badge">Conforme</p>
+                        </div>
+                        <div class="report-card">
+                            <h4>Riscos Críticos</h4>
+                            <p id="report-riscos-criticos">0</p>
+                        </div>
+                        <div class="report-card">
+                            <h4>Conformidade NR-01</h4>
+                            <p id="report-conformidade">100%</p>
+                        </div>
+                        <div class="report-card">
+                            <h4>Ações Pendentes</h4>
+                            <p id="report-acoes-pendentes">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checklist Status -->
+                <div class="report-section" id="checklist-status">
+                    <h3>Status do Checklist PGR</h3>
+                    <table id="report-checklist-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Status</th>
+                                <th>Responsável</th>
+                                <th>Prazo</th>
+                                <th>Risco</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados carregados via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Inventário de Riscos Resumo -->
+                <div class="report-section" id="riscos-resumo">
+                    <h3>Resumo do Inventário de Riscos</h3>
+                    <div class="risk-summary">
+                        <div class="risk-type-summary">
+                            <h4>Riscos por Categoria</h4>
+                            <ul id="risk-categories-list">
+                                <!-- Dados carregados via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plano de Ação Status -->
+                <div class="report-section" id="plano-acao-status">
+                    <h3>Status do Plano de Ação</h3>
+                    <table id="report-acoes-table">
+                        <thead>
+                            <tr>
+                                <th>Descrição</th>
+                                <th>Responsável</th>
+                                <th>Status</th>
+                                <th>Prazo</th>
+                                <th>Risco</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados carregados via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <!-- 8. Notificações -->
