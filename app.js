@@ -335,9 +335,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 atualizarRelatorios();
             } else if (id === 'gestao-documentos') {
                 carregarDocumentosArmazenados();
+                popularDropdownsUnidades();
             } else if (id === 'gestao-unidades') {
                 configurarGestaoUnidades();
                 carregarUnidadesCadastradas();
+            } else if (id === 'plano-acao' || id === 'inventario-riscos') {
+                popularDropdownsUnidades();
             }
         });
     });
@@ -350,6 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
         atualizarRelatorios();
         configurarMascarasInput();
         configurarGestaoUnidades();
+        popularDropdownsUnidades();
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -514,13 +518,20 @@ document.addEventListener('DOMContentLoaded', function () {
         formDocumentos.addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const unidadeId = document.getElementById('unidadeDocumento').value;
             const tipo = document.getElementById('tipoDocumento').value;
             const nome = document.getElementById('nomeDocumento').value;
             const dataEmissao = document.getElementById('dataEmissaoDoc').value;
             const arquivoInput = document.getElementById('arquivoDocumento');
             
+            // Validar se uma unidade foi selecionada
+            if (!unidadeId) {
+                mostrarMensagem('Por favor, selecione uma unidade.', 'error');
+                return;
+            }
+            
             if (!arquivoInput.files[0]) {
-                alert('Por favor, selecione um arquivo.');
+                mostrarMensagem('Por favor, selecione um arquivo.', 'error');
                 return;
             }
             
@@ -528,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Validar tamanho (máximo 10MB)
             if (arquivo.size > 10 * 1024 * 1024) {
-                alert('O arquivo é muito grande. Máximo permitido: 10MB');
+                mostrarMensagem('O arquivo é muito grande. Máximo permitido: 10MB', 'error');
                 return;
             }
             
@@ -536,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const documento = {
+                    unidadeId: parseInt(unidadeId),
                     tipo: tipo,
                     nome: nome || arquivo.name,
                     dataEmissao: dataEmissao,
@@ -548,12 +560,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 try {
                     await pgrStorage.salvarDocumento(documento);
-                    alert('Documento salvo com sucesso!');
+                    mostrarMensagem('Documento salvo com sucesso!', 'success');
                     formDocumentos.reset();
                     carregarDocumentosArmazenados();
+                    // Re-popular o dropdown após reset
+                    popularDropdownsUnidades();
                 } catch (error) {
                     console.error('Erro ao salvar documento:', error);
-                    alert('Erro ao salvar documento. Tente novamente.');
+                    mostrarMensagem('Erro ao salvar documento. Tente novamente.', 'error');
                 }
             };
             
@@ -998,6 +1012,56 @@ document.addEventListener('DOMContentLoaded', function () {
     // Tornar funções globais para uso nos botões
     window.selecionarUnidade = selecionarUnidade;
     window.excluirUnidade = excluirUnidade;
+
+    // ===== INTEGRAÇÃO DE UNIDADES COM MATERIAIS =====
+    
+    // Popular dropdowns de unidades em todos os formulários
+    async function popularDropdownsUnidades() {
+        try {
+            const unidades = await pgrStorage.listarUnidades();
+            const dropdowns = [
+                'unidadeDocumento',
+                'unidadeAcao', 
+                'unidadeRiscoFisico'
+                // Adicionar mais IDs conforme necessário
+            ];
+            
+            dropdowns.forEach(dropdownId => {
+                const dropdown = document.getElementById(dropdownId);
+                if (dropdown) {
+                    // Limpar opções existentes exceto a primeira
+                    while (dropdown.options.length > 1) {
+                        dropdown.remove(1);
+                    }
+                    
+                    // Adicionar unidades
+                    unidades.forEach(unidade => {
+                        const option = document.createElement('option');
+                        option.value = unidade.id;
+                        option.textContent = unidade.nome;
+                        dropdown.appendChild(option);
+                    });
+                    
+                    // Se há uma unidade selecionada, pré-selecionar nos dropdowns
+                    if (unidadeAtual) {
+                        dropdown.value = unidadeAtual.id;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Erro ao popular dropdowns de unidades:', error);
+        }
+    }
+    
+    // Atualizar documento para incluir unidade
+    async function salvarDocumentoComUnidade(documento) {
+        // Adicionar unidadeId ao documento se não existir
+        if (!documento.unidadeId && unidadeAtual) {
+            documento.unidadeId = unidadeAtual.id;
+        }
+        
+        return await pgrStorage.salvarDocumento(documento);
+    }
 
     // Exemplo: Adicionar item ao checklist
     const addChecklistButton = document.getElementById('add-checklist-item');

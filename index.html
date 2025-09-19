@@ -228,6 +228,12 @@
                 
                 <h3>Riscos Físicos</h3>
                 <form id="form-riscos-fisicos">
+                    <div class="form-group">
+                        <label for="unidadeRiscoFisico">Unidade:</label>
+                        <select id="unidadeRiscoFisico" required>
+                            <option value="">Selecione uma unidade</option>
+                        </select>
+                    </div>
                     <div class="form-group"><label for="tipoRiscoFisico">Tipo de Risco:</label><input type="text" id="tipoRiscoFisico" placeholder="Ex: Ruído, Vibração"></div>
                     <div class="form-group"><label for="fonteRiscoFisico">Fonte:</label><input type="text" id="fonteRiscoFisico" placeholder="Ex: Compressor"></div>
                     <div class="form-group"><label for="exposicaoFisico">Nível de Exposição:</label><input type="text" id="exposicaoFisico" placeholder="Ex: 85 dB (A)"></div>
@@ -324,6 +330,12 @@
                 <p>Acompanhe o status e os prazos das ações para itens pendentes ou de alto risco.</p>
                 <h3>Adicionar Nova Ação</h3>
                 <form id="form-plano-acao">
+                    <div class="form-group">
+                        <label for="unidadeAcao">Unidade:</label>
+                        <select id="unidadeAcao" required>
+                            <option value="">Selecione uma unidade</option>
+                        </select>
+                    </div>
                     <div class="form-group"><label for="descricaoAcao">Descrição da Ação:</label><textarea id="descricaoAcao" required></textarea></div>
                     <div class="form-group"><label for="responsavelAcao">Responsável:</label><input type="text" id="responsavelAcao" required></div>
                     <div class="form-group"><label for="prazoAcao">Prazo Final:</label><input type="date" id="prazoAcao" required></div>
@@ -370,6 +382,12 @@
                 <p>Faça o upload e armazene documentos importantes como laudos, atestados e fichas.</p>
                 <h3>Upload de Documentos</h3>
                 <form id="form-documentos">
+                    <div class="form-group">
+                        <label for="unidadeDocumento">Unidade:</label>
+                        <select id="unidadeDocumento" required>
+                            <option value="">Selecione uma unidade</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="tipoDocumento">Tipo de Documento:</label>
                         <select id="tipoDocumento">
