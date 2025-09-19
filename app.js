@@ -106,6 +106,46 @@ class PGRStorage {
         const usuario = await this.buscarUsuario(username);
         return !!usuario;
     }
+
+    // Métodos para gerenciamento de unidades de trabalho
+    async salvarUnidade(unidade) {
+        const unidades = await this.obterDados('unidades') || [];
+        
+        // Gerar ID único para a unidade
+        const novaUnidade = {
+            ...unidade,
+            id: Date.now(),
+            dataCadastro: new Date().toISOString()
+        };
+        
+        unidades.push(novaUnidade);
+        await this.salvarDados('unidades', unidades);
+        return novaUnidade;
+    }
+
+    async listarUnidades() {
+        return await this.obterDados('unidades') || [];
+    }
+
+    async excluirUnidade(id) {
+        const unidades = await this.obterDados('unidades') || [];
+        const unidadesFiltradas = unidades.filter(u => u.id !== id);
+        await this.salvarDados('unidades', unidadesFiltradas);
+        return true;
+    }
+
+    async atualizarUnidade(id, dadosAtualizados) {
+        const unidades = await this.obterDados('unidades') || [];
+        const index = unidades.findIndex(u => u.id === id);
+        
+        if (index !== -1) {
+            unidades[index] = { ...unidades[index], ...dadosAtualizados };
+            await this.salvarDados('unidades', unidades);
+            return unidades[index];
+        }
+        
+        return null;
+    }
 }
 
 // Instância global do storage
@@ -272,6 +312,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 atualizarRelatorios();
             } else if (id === 'gestao-documentos') {
                 carregarDocumentosArmazenados();
+            } else if (id === 'gestao-unidades') {
+                carregarUnidadesArmazenadas();
             }
         });
     });
@@ -283,6 +325,8 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarDocumentosArmazenados();
         atualizarRelatorios();
         configurarMascarasInput();
+        configurarGestaoUnidades();
+        carregarUnidadesArmazenadas();
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -556,6 +600,141 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Erro ao excluir documento.');
             }
         }
+    };
+
+    // Gestão de Unidades de Trabalho
+    function configurarGestaoUnidades() {
+        const formUnidade = document.getElementById('form-unidade');
+        
+        if (formUnidade) {
+            formUnidade.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Coletar dados do formulário
+                const nome = document.getElementById('nomeUnidade').value.trim();
+                const cnpj = document.getElementById('cnpjUnidade').value.trim();
+                const endereco = document.getElementById('enderecoUnidade').value.trim();
+                const responsavel = document.getElementById('responsavelLegalUnidade').value.trim();
+                const contato = document.getElementById('contatoUnidade').value.trim();
+
+                // Validar dados obrigatórios
+                if (!nome || !cnpj || !endereco || !responsavel) {
+                    mostrarMensagemUnidade('Por favor, preencha todos os campos obrigatórios.', 'error');
+                    return;
+                }
+
+                try {
+                    const novaUnidade = {
+                        nome: nome,
+                        cnpj: cnpj,
+                        endereco: endereco,
+                        responsavel: responsavel,
+                        contato: contato
+                    };
+
+                    await pgrStorage.salvarUnidade(novaUnidade);
+                    mostrarMensagemUnidade('Unidade cadastrada com sucesso!', 'success');
+                    
+                    // Limpar formulário
+                    formUnidade.reset();
+                    
+                    // Recarregar lista de unidades
+                    carregarUnidadesArmazenadas();
+                    
+                } catch (error) {
+                    console.error('Erro ao salvar unidade:', error);
+                    mostrarMensagemUnidade('Erro ao cadastrar unidade. Tente novamente.', 'error');
+                }
+            });
+        }
+    }
+
+    // Carregar unidades armazenadas
+    async function carregarUnidadesArmazenadas() {
+        try {
+            const unidades = await pgrStorage.listarUnidades();
+            const tbody = document.querySelector('#unidades-cadastradas-table tbody');
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (unidades.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = '<td colspan="4" style="text-align: center; color: #666;">Nenhuma unidade cadastrada</td>';
+                    tbody.appendChild(tr);
+                } else {
+                    unidades.forEach(unidade => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${unidade.nome}</td>
+                            <td>${unidade.cnpj}</td>
+                            <td>${unidade.responsavel}</td>
+                            <td>
+                                <div class="unit-actions">
+                                    <button class="btn-small btn-edit" onclick="editarUnidade(${unidade.id})" title="Editar">
+                                        ✏️ Editar
+                                    </button>
+                                    <button class="btn-small btn-delete" onclick="excluirUnidade(${unidade.id})" title="Excluir">
+                                        🗑️ Excluir
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Erro ao carregar unidades:', error);
+            mostrarMensagemUnidade('Erro ao carregar unidades cadastradas.', 'error');
+        }
+    }
+
+    // Função para mostrar mensagens de feedback para unidades
+    function mostrarMensagemUnidade(texto, tipo) {
+        // Criar elemento de mensagem se não existir
+        let mensagemEl = document.getElementById('unidade-message');
+        if (!mensagemEl) {
+            mensagemEl = document.createElement('div');
+            mensagemEl.id = 'unidade-message';
+            mensagemEl.className = 'message';
+            mensagemEl.style.display = 'none';
+            
+            // Inserir após o formulário
+            const form = document.getElementById('form-unidade');
+            if (form) {
+                form.parentNode.insertBefore(mensagemEl, form.nextSibling);
+            }
+        }
+        
+        mensagemEl.textContent = texto;
+        mensagemEl.className = `message ${tipo}`;
+        mensagemEl.style.display = 'block';
+        
+        // Esconder mensagem após 5 segundos
+        setTimeout(() => {
+            mensagemEl.style.display = 'none';
+        }, 5000);
+    }
+
+    // Funções globais para manipulação de unidades
+    window.excluirUnidade = async function(id) {
+        if (confirm('Tem certeza que deseja excluir esta unidade?')) {
+            try {
+                await pgrStorage.excluirUnidade(id);
+                mostrarMensagemUnidade('Unidade excluída com sucesso!', 'success');
+                carregarUnidadesArmazenadas();
+            } catch (error) {
+                console.error('Erro ao excluir unidade:', error);
+                mostrarMensagemUnidade('Erro ao excluir unidade.', 'error');
+            }
+        }
+    };
+
+    window.editarUnidade = function(id) {
+        // Implementação básica para edição - pode ser expandida futuramente
+        alert('Funcionalidade de edição será implementada em breve.');
     };
 
     // Configurar exportação de relatórios
