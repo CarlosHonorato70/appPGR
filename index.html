@@ -6,6 +6,38 @@
     <title>Sistema de Gestão de PGR</title>
     <!-- Link para o arquivo de estilos CSS -->
     <link rel="stylesheet" href="./style.css">
+    <!-- Bibliotecas para exportação de relatórios - com fallbacks -->
+    <script>
+        // Fallbacks para quando as bibliotecas CDN não estão disponíveis
+        window.exportFallbacks = {
+            // Simple PDF export using print functionality
+            exportToPDF: function(element, filename) {
+                const originalTitle = document.title;
+                document.title = filename;
+                window.print();
+                document.title = originalTitle;
+            },
+            
+            // Simple CSV export
+            exportToCSV: function(data, filename) {
+                let csv = '';
+                data.forEach(row => {
+                    csv += row.join(',') + '\n';
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <header>
@@ -330,6 +362,7 @@
                             <th>Tipo</th>
                             <th>Título</th>
                             <th>Data de Emissão</th>
+                            <th>Tamanho</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -343,7 +376,133 @@
             <section id="relatorios-dashboards" class="content-section">
                 <h2>Relatórios e Dashboards</h2>
                 <p>Visualize o status do PGR, identifique riscos críticos e acompanhe o progresso do plano de ação.</p>
-                <!-- Espaço para gráficos (requer biblioteca como Chart.js) -->
+                
+                <div class="report-actions">
+                    <h3>Exportar Relatórios</h3>
+                    <div class="export-buttons">
+                        <button id="export-pdf" class="export-btn">
+                            <span>📄</span> Exportar Relatório Completo (PDF)
+                        </button>
+                        <button id="export-excel" class="export-btn">
+                            <span>📊</span> Exportar Dados (Excel)
+                        </button>
+                        <button id="print-report" class="export-btn">
+                            <span>🖨️</span> Imprimir Relatório
+                        </button>
+                    </div>
+                </div>
+
+                <div class="dashboard-summary" id="report-content">
+                    <h3>Resumo Executivo do PGR</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <h4>Status Geral</h4>
+                            <p class="status-value">Conforme</p>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Total de Riscos Identificados</h4>
+                            <p class="status-value" id="total-riscos">0</p>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Ações Pendentes</h4>
+                            <p class="status-value" id="total-acoes-pendentes">0</p>
+                        </div>
+                        <div class="summary-item">
+                            <h4>Conformidade</h4>
+                            <p class="status-value" id="percentual-conformidade">0%</p>
+                        </div>
+                    </div>
+
+                    <h4>Riscos por Categoria</h4>
+                    <table id="relatorio-riscos-tabela">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th>Quantidade</th>
+                                <th>Alto Risco</th>
+                                <th>Médio Risco</th>
+                                <th>Baixo Risco</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Físicos</td>
+                                <td id="count-fisicos">0</td>
+                                <td id="alto-fisicos">0</td>
+                                <td id="medio-fisicos">0</td>
+                                <td id="baixo-fisicos">0</td>
+                            </tr>
+                            <tr>
+                                <td>Químicos</td>
+                                <td id="count-quimicos">0</td>
+                                <td id="alto-quimicos">0</td>
+                                <td id="medio-quimicos">0</td>
+                                <td id="baixo-quimicos">0</td>
+                            </tr>
+                            <tr>
+                                <td>Biológicos</td>
+                                <td id="count-biologicos">0</td>
+                                <td id="alto-biologicos">0</td>
+                                <td id="medio-biologicos">0</td>
+                                <td id="baixo-biologicos">0</td>
+                            </tr>
+                            <tr>
+                                <td>Ergonômicos</td>
+                                <td id="count-ergonomicos">0</td>
+                                <td id="alto-ergonomicos">0</td>
+                                <td id="medio-ergonomicos">0</td>
+                                <td id="baixo-ergonomicos">0</td>
+                            </tr>
+                            <tr>
+                                <td>Acidentes</td>
+                                <td id="count-acidentes">0</td>
+                                <td id="alto-acidentes">0</td>
+                                <td id="medio-acidentes">0</td>
+                                <td id="baixo-acidentes">0</td>
+                            </tr>
+                            <tr>
+                                <td>Psicossociais</td>
+                                <td id="count-psicossociais">0</td>
+                                <td id="alto-psicossociais">0</td>
+                                <td id="medio-psicossociais">0</td>
+                                <td id="baixo-psicossociais">0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h4>Plano de Ação - Status</h4>
+                    <table id="relatorio-acoes-tabela">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Quantidade</th>
+                                <th>Percentual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Pendente</td>
+                                <td id="count-pendente">0</td>
+                                <td id="perc-pendente">0%</td>
+                            </tr>
+                            <tr>
+                                <td>Em Progresso</td>
+                                <td id="count-progresso">0</td>
+                                <td id="perc-progresso">0%</td>
+                            </tr>
+                            <tr>
+                                <td>Concluído</td>
+                                <td id="count-concluido">0</td>
+                                <td id="perc-concluido">0%</td>
+                            </tr>
+                            <tr>
+                                <td>Atrasado</td>
+                                <td id="count-atrasado">0</td>
+                                <td id="perc-atrasado">0%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <!-- 8. Notificações -->
