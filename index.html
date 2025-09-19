@@ -8,10 +8,48 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <header>
-        <h1>Sistema de Gestão de PGR</h1>
-        <p>Gerencie e monitore o Programa de Gerenciamento de Riscos (PGR) em conformidade com a NR-01.</p>
-    </header>
+    <!-- Tela de Login -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Sistema de Gestão de PGR</h1>
+                <p>Acesso Restrito - Autenticação Necessária</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-username">Usuário:</label>
+                    <input type="text" id="login-username" placeholder="Digite seu usuário" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Senha:</label>
+                    <input type="password" id="login-password" placeholder="Digite sua senha" required>
+                </div>
+                <button type="submit" id="login-btn">Entrar</button>
+                <div id="login-error" class="login-error" style="display: none;"></div>
+            </form>
+            <div class="login-credentials-demo">
+                <h3>⚠️ Credenciais de Demonstração</h3>
+                <p><strong>Usuário:</strong> admin | <strong>Senha:</strong> admin123</p>
+                <p><strong>Usuário:</strong> usuario | <strong>Senha:</strong> senha123</p>
+                <small>⚠️ <strong>IMPORTANTE:</strong> Para uso em produção, implemente um sistema de backend seguro com hash de senhas e autenticação robusta.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aplicação Principal (inicialmente oculta) -->
+    <div id="main-app" style="display: none;">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>Sistema de Gestão de PGR</h1>
+                    <p>Gerencie e monitore o Programa de Gerenciamento de Riscos (PGR) em conformidade com a NR-01.</p>
+                </div>
+                <div class="user-info">
+                    <span id="logged-user">Usuário logado</span>
+                    <button id="logout-btn" class="logout-btn">Sair</button>
+                </div>
+            </div>
+        </header>
 
     <div class="main-container">
         <nav>
@@ -344,7 +382,11 @@
     <footer>
         <p>&copy; 2025 Sistema de Gestão de PGR. Todos os direitos reservados.</p>
     </footer>
+    </div> <!-- Fim da main-app -->
 
+    <!-- CryptoJS para criptografia AES -->
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
+    
     <!-- Link para o arquivo JavaScript -->
     <script src="./app.js"></script>
 </body>
