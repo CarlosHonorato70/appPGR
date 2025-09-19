@@ -607,45 +607,60 @@ document.addEventListener('DOMContentLoaded', function () {
         const formUnidade = document.getElementById('form-unidade');
         
         if (formUnidade) {
+            // Add form submit event listener
             formUnidade.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
-                // Coletar dados do formulário
-                const nome = document.getElementById('nomeUnidade').value.trim();
-                const cnpj = document.getElementById('cnpjUnidade').value.trim();
-                const endereco = document.getElementById('enderecoUnidade').value.trim();
-                const responsavel = document.getElementById('responsavelLegalUnidade').value.trim();
-                const contato = document.getElementById('contatoUnidade').value.trim();
-
-                // Validar dados obrigatórios
-                if (!nome || !cnpj || !endereco || !responsavel) {
-                    mostrarMensagemUnidade('Por favor, preencha todos os campos obrigatórios.', 'error');
-                    return;
-                }
-
-                try {
-                    const novaUnidade = {
-                        nome: nome,
-                        cnpj: cnpj,
-                        endereco: endereco,
-                        responsavel: responsavel,
-                        contato: contato
-                    };
-
-                    await pgrStorage.salvarUnidade(novaUnidade);
-                    mostrarMensagemUnidade('Unidade cadastrada com sucesso!', 'success');
-                    
-                    // Limpar formulário
-                    formUnidade.reset();
-                    
-                    // Recarregar lista de unidades
-                    carregarUnidadesArmazenadas();
-                    
-                } catch (error) {
-                    console.error('Erro ao salvar unidade:', error);
-                    mostrarMensagemUnidade('Erro ao cadastrar unidade. Tente novamente.', 'error');
-                }
+                await processarCadastroUnidade(formUnidade);
             });
+
+            // Add button click event listener as fallback
+            const submitButton = formUnidade.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    await processarCadastroUnidade(formUnidade);
+                });
+            }
+        }
+    }
+
+    // Function to process unit registration
+    async function processarCadastroUnidade(form) {
+        
+        // Coletar dados do formulário
+        const nome = document.getElementById('nomeUnidade').value.trim();
+        const cnpj = document.getElementById('cnpjUnidade').value.trim();
+        const endereco = document.getElementById('enderecoUnidade').value.trim();
+        const responsavel = document.getElementById('responsavelLegalUnidade').value.trim();
+        const contato = document.getElementById('contatoUnidade').value.trim();
+
+        // Validar dados obrigatórios
+        if (!nome || !cnpj || !endereco || !responsavel) {
+            mostrarMensagemUnidade('Por favor, preencha todos os campos obrigatórios.', 'error');
+            return;
+        }
+
+        try {
+            const novaUnidade = {
+                nome: nome,
+                cnpj: cnpj,
+                endereco: endereco,
+                responsavel: responsavel,
+                contato: contato
+            };
+
+            await pgrStorage.salvarUnidade(novaUnidade);
+            mostrarMensagemUnidade('Unidade cadastrada com sucesso!', 'success');
+            
+            // Limpar formulário
+            form.reset();
+            
+            // Recarregar lista de unidades
+            carregarUnidadesArmazenadas();
+            
+        } catch (error) {
+            console.error('Erro ao salvar unidade:', error);
+            mostrarMensagemUnidade('Erro ao cadastrar unidade. Tente novamente.', 'error');
         }
     }
 
