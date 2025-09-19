@@ -155,6 +155,165 @@ footer {
     padding-left: 22px;
 }
 
+/* Estilos para gerenciamento de usuários */
+.user-tabs {
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 20px;
+}
+
+.user-tab {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #6c757d;
+    border-bottom: 2px solid transparent;
+}
+
+.user-tab.active {
+    color: #2d89ef;
+    border-bottom-color: #2d89ef;
+}
+
+.user-tab-content {
+    display: none;
+}
+
+.user-tab-content.active {
+    display: block;
+}
+
+.form-help {
+    display: block;
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+.feedback-message {
+    font-size: 0.85em;
+    margin-top: 4px;
+    padding: 4px 0;
+}
+
+.feedback-message.error {
+    color: #dc3545;
+}
+
+.feedback-message.success {
+    color: #28a745;
+}
+
+.password-strength {
+    margin-top: 8px;
+    padding: 4px 0;
+    font-size: 0.85em;
+}
+
+.strength-weak {
+    color: #dc3545;
+}
+
+.strength-medium {
+    color: #ffc107;
+}
+
+.strength-strong {
+    color: #28a745;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.modal-buttons button {
+    flex: 1;
+}
+
+.modal-buttons button[type="button"] {
+    background: #6c757d;
+}
+
+.modal-buttons button[type="button"]:hover {
+    background: #545b62;
+}
+
+.login-register {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.login-register a {
+    color: #2d89ef;
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+.login-register a:hover {
+    text-decoration: underline;
+}
+
+.user-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-toggle {
+    background: #ffc107;
+    color: #212529;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.btn-toggle:hover {
+    background: #e0a800;
+}
+
+.btn-toggle.inactive {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-toggle.inactive:hover {
+    background: #c82333;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.badge.admin {
+    background: #6f42c1;
+    color: white;
+}
+
+.badge.usuario {
+    background: #17a2b8;
+    color: white;
+}
+
+.badge.active {
+    background: #28a745;
+    color: white;
+}
+
+.badge.inactive {
+    background: #dc3545;
+    color: white;
+}
+
 /* Estilos para exportação de relatórios */
 .report-actions {
     background: #f8f9fa;
