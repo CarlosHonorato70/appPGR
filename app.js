@@ -106,6 +106,48 @@ class PGRStorage {
         const usuario = await this.buscarUsuario(username);
         return !!usuario;
     }
+
+    // Métodos para gerenciamento de unidades
+    async salvarUnidade(unidadeData) {
+        try {
+            await this.initDB(); // Garantir que DB está inicializado
+            const unidades = await this.obterDados('unidades');
+            const novaUnidade = {
+                id: Date.now(), // ID único baseado em timestamp
+                ...unidadeData,
+                dataCriacao: new Date().toISOString()
+            };
+            unidades.push(novaUnidade);
+            await this.salvarDados('unidades', unidades);
+            return novaUnidade;
+        } catch (error) {
+            console.error('Erro ao salvar unidade:', error);
+            throw error;
+        }
+    }
+
+    async obterUnidades() {
+        try {
+            await this.initDB(); // Garantir que DB está inicializado
+            return await this.obterDados('unidades');
+        } catch (error) {
+            console.error('Erro ao obter unidades:', error);
+            return [];
+        }
+    }
+
+    async excluirUnidade(unidadeId) {
+        try {
+            await this.initDB(); // Garantir que DB está inicializado
+            const unidades = await this.obterDados('unidades');
+            const unidadesFiltradas = unidades.filter(u => u.id !== unidadeId);
+            await this.salvarDados('unidades', unidadesFiltradas);
+            return true;
+        } catch (error) {
+            console.error('Erro ao excluir unidade:', error);
+            throw error;
+        }
+    }
 }
 
 // Instância global do storage
@@ -283,6 +325,8 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarDocumentosArmazenados();
         atualizarRelatorios();
         configurarMascarasInput();
+        configurarGestaoUnidades(); // Adicionar configuração de unidades
+        carregarUnidades(); // Carregar unidades existentes
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -438,6 +482,179 @@ document.addEventListener('DOMContentLoaded', function () {
         
         input.setCustomValidity('');
         return true;
+    }
+
+    // Configurar gestão de unidades
+    function configurarGestaoUnidades() {
+        const formUnidade = document.getElementById('form-unidade');
+        
+        if (formUnidade) {
+            formUnidade.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const nomeUnidade = document.getElementById('nomeUnidade').value.trim();
+                const cnpjUnidade = document.getElementById('cnpjUnidade').value.trim();
+                const enderecoUnidade = document.getElementById('enderecoUnidade').value.trim();
+                const responsavelLegalUnidade = document.getElementById('responsavelLegalUnidade').value.trim();
+                const contatoUnidade = document.getElementById('contatoUnidade').value.trim();
+                
+                if (!nomeUnidade || !cnpjUnidade || !enderecoUnidade || !responsavelLegalUnidade) {
+                    mostrarMensagem('Por favor, preencha todos os campos obrigatórios.', 'error');
+                    return;
+                }
+                
+                // Validar CNPJ
+                const cnpjField = document.getElementById('cnpjUnidade');
+                if (!validarCNPJ(cnpjField)) {
+                    mostrarMensagem('CNPJ inválido. Por favor, corrija e tente novamente.', 'error');
+                    cnpjField.focus();
+                    return;
+                }
+                
+                try {
+                    const novaUnidade = {
+                        nome: nomeUnidade,
+                        cnpj: cnpjUnidade,
+                        endereco: enderecoUnidade,
+                        responsavelLegal: responsavelLegalUnidade,
+                        contato: contatoUnidade
+                    };
+                    
+                    await pgrStorage.salvarUnidade(novaUnidade);
+                    mostrarMensagem('Unidade cadastrada com sucesso!', 'success');
+                    
+                    // Limpar formulário
+                    formUnidade.reset();
+                    
+                    // Recarregar lista de unidades
+                    carregarUnidades();
+                    
+                } catch (error) {
+                    console.error('Erro ao cadastrar unidade:', error);
+                    mostrarMensagem('Erro ao cadastrar unidade. Tente novamente.', 'error');
+                }
+            });
+        }
+    }
+
+    // Carregar e exibir unidades
+    async function carregarUnidades() {
+        try {
+            const unidades = await pgrStorage.obterUnidades();
+            const tbody = document.querySelector('#unidades-cadastradas-table tbody');
+            
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                if (unidades.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = '<td colspan="4" style="text-align: center; color: #666;">Nenhuma unidade cadastrada</td>';
+                    tbody.appendChild(tr);
+                    return;
+                }
+                
+                unidades.forEach(unidade => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${unidade.nome}</td>
+                        <td>${unidade.cnpj}</td>
+                        <td>${unidade.responsavelLegal}</td>
+                        <td>
+                            <button class="btn-small btn-delete" onclick="excluirUnidade(${unidade.id})" title="Excluir unidade">
+                                🗑️ Excluir
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao carregar unidades:', error);
+            mostrarMensagem('Erro ao carregar unidades.', 'error');
+        }
+    }
+
+    // Função global para excluir unidade
+    window.excluirUnidade = async function(unidadeId) {
+        if (confirm('Tem certeza que deseja excluir esta unidade? Esta ação não pode ser desfeita.')) {
+            try {
+                await pgrStorage.excluirUnidade(unidadeId);
+                mostrarMensagem('Unidade excluída com sucesso!', 'success');
+                carregarUnidades();
+            } catch (error) {
+                console.error('Erro ao excluir unidade:', error);
+                mostrarMensagem('Erro ao excluir unidade.', 'error');
+            }
+        }
+    };
+
+    // Função para mostrar mensagens
+    function mostrarMensagem(mensagem, tipo = 'info') {
+        // Criar elemento de mensagem se não existir
+        let messageContainer = document.getElementById('message-container');
+        if (!messageContainer) {
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'message-container';
+            messageContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                max-width: 400px;
+            `;
+            document.body.appendChild(messageContainer);
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${tipo}`;
+        messageDiv.style.cssText = `
+            padding: 12px 20px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+            cursor: pointer;
+            ${tipo === 'success' ? 'background-color: #4CAF50;' : ''}
+            ${tipo === 'error' ? 'background-color: #f44336;' : ''}
+            ${tipo === 'info' ? 'background-color: #2196F3;' : ''}
+        `;
+        
+        messageDiv.textContent = mensagem;
+        
+        // Adicionar estilo de animação se não existir
+        if (!document.getElementById('message-styles')) {
+            const style = document.createElement('style');
+            style.id = 'message-styles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remover mensagem ao clicar
+        messageDiv.addEventListener('click', () => {
+            messageDiv.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => messageDiv.remove(), 300);
+        });
+        
+        messageContainer.appendChild(messageDiv);
+        
+        // Remover automaticamente após 5 segundos
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => messageDiv.remove(), 300);
+            }
+        }, 5000);
     }
 
     // Gestão de Documentos
