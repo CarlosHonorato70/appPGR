@@ -4,7 +4,7 @@
 class PGRStorage {
     constructor() {
         this.dbName = 'pgrDB';
-        this.dbVersion = 2;
+        this.dbVersion = 3;
         this.db = null;
         this.initDB();
     }
@@ -27,6 +27,7 @@ class PGRStorage {
                     const documentosStore = db.createObjectStore('documentos', { keyPath: 'id', autoIncrement: true });
                     documentosStore.createIndex('tipo', 'tipo', { unique: false });
                     documentosStore.createIndex('nome', 'nome', { unique: false });
+                    documentosStore.createIndex('unidadeId', 'unidadeId', { unique: false });
                 }
                 
                 // Store para dados do sistema
@@ -38,6 +39,13 @@ class PGRStorage {
                 if (!db.objectStoreNames.contains('users')) {
                     const usersStore = db.createObjectStore('users', { keyPath: 'username' });
                     usersStore.createIndex('username', 'username', { unique: true });
+                }
+                
+                // Store para unidades de trabalho
+                if (!db.objectStoreNames.contains('unidades')) {
+                    const unidadesStore = db.createObjectStore('unidades', { keyPath: 'id', autoIncrement: true });
+                    unidadesStore.createIndex('nome', 'nome', { unique: false });
+                    unidadesStore.createIndex('cnpj', 'cnpj', { unique: false });
                 }
             };
         });
@@ -106,10 +114,55 @@ class PGRStorage {
         const usuario = await this.buscarUsuario(username);
         return !!usuario;
     }
+    
+    // Métodos para gerenciamento de unidades
+    async salvarUnidade(unidade) {
+        const transaction = this.db.transaction(['unidades'], 'readwrite');
+        const store = transaction.objectStore('unidades');
+        return new Promise((resolve, reject) => {
+            const request = store.add(unidade);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    
+    async listarUnidades() {
+        const transaction = this.db.transaction(['unidades'], 'readonly');
+        const store = transaction.objectStore('unidades');
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    
+    async buscarUnidade(id) {
+        const transaction = this.db.transaction(['unidades'], 'readonly');
+        const store = transaction.objectStore('unidades');
+        return new Promise((resolve, reject) => {
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    
+    async excluirUnidade(id) {
+        const transaction = this.db.transaction(['unidades'], 'readwrite');
+        const store = transaction.objectStore('unidades');
+        return new Promise((resolve, reject) => {
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
 }
 
 // Instância global do storage
 const pgrStorage = new PGRStorage();
+window.pgrStorage = pgrStorage; // Make it available globally
+
+// Variável global para armazenar a unidade atualmente selecionada
+let unidadeAtual = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     // Login Modal
@@ -119,8 +172,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
 
-    // Login com suporte a múltiplos usuários
-    loginForm.addEventListener('submit', async function (e) {
+    // Only setup login functionality if elements exist
+    if (loginForm && loginModal && mainApp) {
+        // Login com suporte a múltiplos usuários
+        loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
@@ -151,11 +206,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    logoutBtn.addEventListener('click', function () {
-        mainApp.style.display = 'none';
-        loginModal.style.display = '';
-        loginForm.reset();
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+            mainApp.style.display = 'none';
+            loginModal.style.display = '';
+            loginForm.reset();
+        });
+    }
 
     // Modais de Registro
     const registerModal = document.getElementById('register-modal');
@@ -163,6 +220,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const showRegisterBtn = document.getElementById('show-register-btn');
     const cancelRegisterBtn = document.getElementById('cancel-register-btn');
     const registerMessage = document.getElementById('register-message');
+
+    // Only setup registration functionality if elements exist
+    if (registerModal && registerForm && showRegisterBtn && cancelRegisterBtn) {
 
     // Mostrar modal de registro
     showRegisterBtn.addEventListener('click', function () {
@@ -257,6 +317,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    } // End of registration modal check
+    } // End of main login/modal functionality check
+
     // Navegação entre seções
     document.querySelectorAll('.nav-link').forEach(function (link) {
         link.addEventListener('click', function (e) {
@@ -272,6 +335,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 atualizarRelatorios();
             } else if (id === 'gestao-documentos') {
                 carregarDocumentosArmazenados();
+            } else if (id === 'gestao-unidades') {
+                configurarGestaoUnidades();
+                carregarUnidadesCadastradas();
             }
         });
     });
@@ -283,6 +349,7 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarDocumentosArmazenados();
         atualizarRelatorios();
         configurarMascarasInput();
+        configurarGestaoUnidades();
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -560,9 +627,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Configurar exportação de relatórios
     function configurarExportacao() {
-        document.getElementById('export-pdf').addEventListener('click', exportarPDF);
-        document.getElementById('export-excel').addEventListener('click', exportarExcel);
-        document.getElementById('print-report').addEventListener('click', imprimirRelatorio);
+        const exportPdfBtn = document.getElementById('export-pdf');
+        const exportExcelBtn = document.getElementById('export-excel');
+        const printReportBtn = document.getElementById('print-report');
+        
+        if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportarPDF);
+        if (exportExcelBtn) exportExcelBtn.addEventListener('click', exportarExcel);
+        if (printReportBtn) printReportBtn.addEventListener('click', imprimirRelatorio);
     }
 
     // Exportar para PDF
@@ -716,18 +787,233 @@ document.addEventListener('DOMContentLoaded', function () {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + tamanhos[i];
     }
 
+    // ===== GESTÃO DE UNIDADES =====
+    
+    // Configurar gestão de unidades
+    function configurarGestaoUnidades() {
+        const formUnidade = document.getElementById('form-unidade');
+        
+        if (!formUnidade) {
+            console.warn('Form unidade não encontrado. Aguardando carregamento...');
+            return; // Return early if form doesn't exist
+        }
+        
+        formUnidade.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const nomeUnidade = document.getElementById('nomeUnidade').value.trim();
+            const cnpjUnidade = document.getElementById('cnpjUnidade').value.trim();
+            const enderecoUnidade = document.getElementById('enderecoUnidade').value.trim();
+            const responsavelLegalUnidade = document.getElementById('responsavelLegalUnidade').value.trim();
+            const contatoUnidade = document.getElementById('contatoUnidade').value.trim();
+            
+            // Validações básicas
+            if (!nomeUnidade || !cnpjUnidade || !enderecoUnidade || !responsavelLegalUnidade) {
+                mostrarMensagem('Todos os campos obrigatórios devem ser preenchidos.', 'error');
+                return;
+            }
+            
+            try {
+                const unidade = {
+                    nome: nomeUnidade,
+                    cnpj: cnpjUnidade,
+                    endereco: enderecoUnidade,
+                    responsavelLegal: responsavelLegalUnidade,
+                    contato: contatoUnidade,
+                    dataCreacao: new Date().toISOString()
+                };
+                
+                await pgrStorage.salvarUnidade(unidade);
+                
+                // Limpar formulário
+                formUnidade.reset();
+                
+                // Mostrar mensagem de sucesso
+                mostrarMensagem('Unidade cadastrada com sucesso!', 'success');
+                
+                // Atualizar lista de unidades
+                carregarUnidadesCadastradas();
+                
+            } catch (error) {
+                console.error('Erro ao cadastrar unidade:', error);
+                mostrarMensagem('Erro ao cadastrar unidade. Tente novamente.', 'error');
+            }
+        });
+        
+        // Carregar unidades na inicialização
+        carregarUnidadesCadastradas();
+    }
+    
+    // Carregar e exibir unidades cadastradas
+    async function carregarUnidadesCadastradas() {
+        try {
+            const unidades = await pgrStorage.listarUnidades();
+            const tbody = document.querySelector('#unidades-cadastradas-table tbody');
+            
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (unidades && unidades.length > 0) {
+                unidades.forEach(unidade => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${unidade.nome}</td>
+                        <td>${unidade.cnpj}</td>
+                        <td>${unidade.responsavelLegal}</td>
+                        <td>
+                            <button class="btn btn-small" onclick="selecionarUnidade(${unidade.id})">Selecionar</button>
+                            <button class="btn btn-small btn-danger" onclick="excluirUnidade(${unidade.id})">Excluir</button>
+                        </td>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">Nenhuma unidade cadastrada ainda.</td></tr>';
+            }
+            
+        } catch (error) {
+            console.error('Erro ao carregar unidades:', error);
+            mostrarMensagem('Erro ao carregar unidades.', 'error');
+        }
+    }
+    
+    // Selecionar unidade atual
+    async function selecionarUnidade(id) {
+        try {
+            const unidade = await pgrStorage.buscarUnidade(id);
+            if (unidade) {
+                unidadeAtual = unidade;
+                mostrarMensagem(`Unidade "${unidade.nome}" selecionada com sucesso!`, 'success');
+                atualizarIndicadorUnidadeAtual();
+            }
+        } catch (error) {
+            console.error('Erro ao selecionar unidade:', error);
+            mostrarMensagem('Erro ao selecionar unidade.', 'error');
+        }
+    }
+    
+    // Excluir unidade
+    async function excluirUnidade(id) {
+        if (!confirm('Tem certeza que deseja excluir esta unidade? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+        
+        try {
+            await pgrStorage.excluirUnidade(id);
+            mostrarMensagem('Unidade excluída com sucesso!', 'success');
+            carregarUnidadesCadastradas();
+            
+            // Se a unidade excluída era a atual, limpar seleção
+            if (unidadeAtual && unidadeAtual.id === id) {
+                unidadeAtual = null;
+                atualizarIndicadorUnidadeAtual();
+            }
+        } catch (error) {
+            console.error('Erro ao excluir unidade:', error);
+            mostrarMensagem('Erro ao excluir unidade.', 'error');
+        }
+    }
+    
+    // Atualizar indicador da unidade atual
+    function atualizarIndicadorUnidadeAtual() {
+        // Adicionar indicador visual da unidade atual no cabeçalho
+        const userInfo = document.querySelector('.user-info');
+        if (!userInfo) return; // Return early if user info element doesn't exist
+        
+        let indicadorUnidade = document.getElementById('indicador-unidade-atual');
+        
+        if (!indicadorUnidade) {
+            indicadorUnidade = document.createElement('span');
+            indicadorUnidade.id = 'indicador-unidade-atual';
+            indicadorUnidade.style.marginRight = '15px';
+            indicadorUnidade.style.color = '#007bff';
+            indicadorUnidade.style.fontWeight = 'bold';
+            userInfo.insertBefore(indicadorUnidade, userInfo.firstChild);
+        }
+        
+        if (unidadeAtual) {
+            indicadorUnidade.textContent = `Unidade: ${unidadeAtual.nome}`;
+        } else {
+            indicadorUnidade.textContent = 'Nenhuma unidade selecionada';
+            indicadorUnidade.style.color = '#dc3545';
+        }
+    }
+    
+    // Função para mostrar mensagens
+    function mostrarMensagem(texto, tipo = 'info') {
+        // Criar elemento de mensagem se não existir
+        let mensagemContainer = document.getElementById('mensagem-container');
+        if (!mensagemContainer) {
+            mensagemContainer = document.createElement('div');
+            mensagemContainer.id = 'mensagem-container';
+            mensagemContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                max-width: 400px;
+            `;
+            document.body.appendChild(mensagemContainer);
+        }
+        
+        // Criar mensagem
+        const mensagem = document.createElement('div');
+        mensagem.style.cssText = `
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        // Definir cor baseada no tipo
+        switch (tipo) {
+            case 'success':
+                mensagem.style.backgroundColor = '#28a745';
+                break;
+            case 'error':
+                mensagem.style.backgroundColor = '#dc3545';
+                break;
+            case 'warning':
+                mensagem.style.backgroundColor = '#ffc107';
+                mensagem.style.color = '#212529';
+                break;
+            default:
+                mensagem.style.backgroundColor = '#007bff';
+        }
+        
+        mensagem.textContent = texto;
+        mensagemContainer.appendChild(mensagem);
+        
+        // Remover mensagem após 4 segundos
+        setTimeout(() => {
+            mensagem.style.opacity = '0';
+            mensagem.style.transform = 'translateX(100%)';
+            setTimeout(() => mensagem.remove(), 300);
+        }, 4000);
+    }
+    
+    // Tornar funções globais para uso nos botões
+    window.selecionarUnidade = selecionarUnidade;
+    window.excluirUnidade = excluirUnidade;
+
     // Exemplo: Adicionar item ao checklist
-    document.getElementById('add-checklist-item').addEventListener('click', function () {
-        const tbody = document.querySelector('#checklist-table tbody');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>Novo item</td>
-            <td>Pendente</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td>Médio</td>
-            <td></td>
-            <td><button onclick="this.parentNode.parentNode.remove()">Remover</button></td>`;
-        tbody.appendChild(tr);
-    });
+    const addChecklistButton = document.getElementById('add-checklist-item');
+    if (addChecklistButton) {
+        addChecklistButton.addEventListener('click', function () {
+            const tbody = document.querySelector('#checklist-table tbody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>Novo item</td>
+                <td>Pendente</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Médio</td>
+                <td></td>
+                <td><button onclick="this.parentNode.parentNode.remove()">Remover</button></td>`;
+            tbody.appendChild(tr);
+        });
+    }
 });

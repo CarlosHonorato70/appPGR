@@ -336,3 +336,75 @@ footer {
         padding: 8px;
     }
 }
+
+/* Styles for unit management buttons and messages */
+.btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin: 0 2px;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+}
+
+.btn-small {
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+.btn-danger {
+    background: #dc3545;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+/* Animation for messages */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Style for unit indicator */
+#indicador-unidade-atual {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* Better table styling for units */
+#unidades-cadastradas-table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+#unidades-cadastradas-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: left;
+}
+
+#unidades-cadastradas-table td {
+    vertical-align: middle;
+}
+
+#unidades-cadastradas-table td:last-child {
+    text-align: center;
+    width: 150px;
+}
