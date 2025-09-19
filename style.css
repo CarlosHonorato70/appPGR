@@ -143,6 +143,28 @@ table th {
     box-shadow: 0 2px 12px #bbb;
     min-width: 320px;
 }
+.register-link {
+    text-align: center;
+    margin-top: 15px;
+}
+.link-btn {
+    background: none;
+    border: none;
+    color: #2d89ef;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+}
+.link-btn:hover {
+    color: #1e5bb8;
+}
+.form-group small {
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 2px;
+}
 footer {
     text-align: center;
     padding: 18px 0;

@@ -4,7 +4,7 @@
 class PGRStorage {
     constructor() {
         this.dbName = 'pgrDB';
-        this.dbVersion = 1;
+        this.dbVersion = 2;
         this.db = null;
         this.initDB();
     }
@@ -16,6 +16,7 @@ class PGRStorage {
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
                 this.db = request.result;
+                this.inicializarUsuarioAdmin(); // Inicializar admin após DB estar pronto
                 resolve(this.db);
             };
             
@@ -32,6 +33,12 @@ class PGRStorage {
                 // Store para dados do sistema
                 if (!db.objectStoreNames.contains('dados')) {
                     const dadosStore = db.createObjectStore('dados', { keyPath: 'tipo' });
+                }
+                
+                // Store para usuários
+                if (!db.objectStoreNames.contains('usuarios')) {
+                    const usuariosStore = db.createObjectStore('usuarios', { keyPath: 'username' });
+                    usuariosStore.createIndex('username', 'username', { unique: true });
                 }
             };
         });
@@ -74,6 +81,69 @@ class PGRStorage {
             request.onerror = () => reject(request.error);
         });
     }
+
+    // Métodos para gerenciamento de usuários
+    async hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async criarUsuario(username, password) {
+        // Verificar se usuário já existe
+        const usuarioExistente = await this.obterUsuario(username);
+        if (usuarioExistente) {
+            throw new Error('Usuário já existe');
+        }
+
+        // Hash da senha
+        const hashedPassword = await this.hashPassword(password);
+        
+        // Salvar usuário
+        const transaction = this.db.transaction(['usuarios'], 'readwrite');
+        const store = transaction.objectStore('usuarios');
+        const usuario = {
+            username,
+            password: hashedPassword,
+            createdAt: new Date().toISOString()
+        };
+        return store.add(usuario);
+    }
+
+    async obterUsuario(username) {
+        const transaction = this.db.transaction(['usuarios'], 'readonly');
+        const store = transaction.objectStore('usuarios');
+        return new Promise((resolve, reject) => {
+            const request = store.get(username);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async validarUsuario(username, password) {
+        const usuario = await this.obterUsuario(username);
+        if (!usuario) {
+            return false;
+        }
+        
+        const hashedPassword = await this.hashPassword(password);
+        return usuario.password === hashedPassword;
+    }
+
+    async inicializarUsuarioAdmin() {
+        try {
+            // Verificar se admin já existe
+            const admin = await this.obterUsuario('admin');
+            if (!admin) {
+                // Criar usuário admin padrão
+                await this.criarUsuario('admin', 'admin123');
+                console.log('Usuário admin criado com sucesso');
+            }
+        } catch (error) {
+            console.error('Erro ao inicializar usuário admin:', error);
+        }
+    }
 }
 
 // Instância global do storage
@@ -87,25 +157,92 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
 
-    // Simples login
-    loginForm.addEventListener('submit', function (e) {
+    // Login e registro de usuários
+    const registerModal = document.getElementById('register-modal');
+    const registerForm = document.getElementById('register-form');
+    const showRegisterBtn = document.getElementById('show-register-btn');
+    const showLoginBtn = document.getElementById('show-login-btn');
+
+    // Login com validação no banco
+    loginForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        if (username === 'admin' && password === 'admin123') {
-            loginModal.style.display = 'none';
-            mainApp.style.display = '';
-            currentUserSpan.textContent = 'Admin';
-            inicializarSistema();
-        } else {
-            alert('Usuário ou senha inválidos!');
+        
+        try {
+            const isValid = await pgrStorage.validarUsuario(username, password);
+            if (isValid) {
+                loginModal.style.display = 'none';
+                mainApp.style.display = '';
+                currentUserSpan.textContent = username;
+                inicializarSistema();
+            } else {
+                alert('Usuário ou senha inválidos!');
+            }
+        } catch (error) {
+            console.error('Erro ao validar usuário:', error);
+            alert('Erro ao fazer login. Tente novamente.');
         }
     });
 
+    // Registro de novos usuários
+    registerForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const username = document.getElementById('new-username').value;
+        const password = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        // Validações
+        if (username.length < 3) {
+            alert('O nome de usuário deve ter pelo menos 3 caracteres.');
+            return;
+        }
+
+        if (password.length < 6) {
+            alert('A senha deve ter pelo menos 6 caracteres.');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            alert('As senhas não coincidem.');
+            return;
+        }
+
+        try {
+            await pgrStorage.criarUsuario(username, password);
+            alert('Conta criada com sucesso! Faça o login com suas credenciais.');
+            mostrarLogin();
+            registerForm.reset();
+        } catch (error) {
+            if (error.message === 'Usuário já existe') {
+                alert('Este nome de usuário já está em uso. Escolha outro.');
+            } else {
+                console.error('Erro ao criar usuário:', error);
+                alert('Erro ao criar conta. Tente novamente.');
+            }
+        }
+    });
+
+    // Navegação entre login e registro
+    showRegisterBtn.addEventListener('click', mostrarRegistro);
+    showLoginBtn.addEventListener('click', mostrarLogin);
+
+    function mostrarRegistro() {
+        loginModal.style.display = 'none';
+        registerModal.style.display = '';
+    }
+
+    function mostrarLogin() {
+        registerModal.style.display = 'none';
+        loginModal.style.display = '';
+    }
+
     logoutBtn.addEventListener('click', function () {
         mainApp.style.display = 'none';
+        registerModal.style.display = 'none';
         loginModal.style.display = '';
         loginForm.reset();
+        registerForm.reset();
     });
 
     // Navegação entre seções

@@ -60,6 +60,36 @@
                 </div>
                 <button type="submit">Entrar</button>
                 <p class="login-info">Usuário padrão: admin / Senha: admin123</p>
+                <div class="register-link">
+                    <p>Não tem uma conta? <button type="button" id="show-register-btn" class="link-btn">Criar nova conta</button></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="register-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Criar Nova Conta - Sistema PGR</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="new-username">Usuário:</label>
+                    <input type="text" id="new-username" required placeholder="Digite seu nome de usuário" minlength="3">
+                    <small>Mínimo 3 caracteres</small>
+                </div>
+                <div class="form-group">
+                    <label for="new-password">Senha:</label>
+                    <input type="password" id="new-password" required placeholder="Digite sua senha" minlength="6">
+                    <small>Mínimo 6 caracteres</small>
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirmar Senha:</label>
+                    <input type="password" id="confirm-password" required placeholder="Confirme sua senha">
+                </div>
+                <button type="submit">Criar Conta</button>
+                <div class="register-link">
+                    <p>Já tem uma conta? <button type="button" id="show-login-btn" class="link-btn">Fazer login</button></p>
+                </div>
             </form>
         </div>
     </div>
