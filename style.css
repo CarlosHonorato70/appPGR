@@ -107,6 +107,50 @@ nav ul li {
     margin-left: 8px;
 }
 
+/* Navigation Unit Selector Styles */
+.nav-unit-selector {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin: 12px 20px;
+    padding: 12px;
+}
+
+.nav-unit-selector label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.nav-unit-select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9em;
+    background: white;
+    color: #495057;
+}
+
+.nav-unit-select:focus {
+    outline: none;
+    border-color: #2d89ef;
+    box-shadow: 0 0 0 2px rgb(45 137 239 / 25%);
+}
+
+.unit-required-message {
+    margin: 8px 0 0;
+    font-size: 0.8em;
+    color: #dc3545;
+    font-weight: 500;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+
 .main-container {
     max-width: 1200px;
     margin: 24px auto;
@@ -140,6 +184,11 @@ nav ul li {
     padding: 7px;
     border: 1px solid #ccc;
     border-radius: 3px;
+}
+
+/* Navigation unit selector specific form group override */
+.nav-unit-selector .form-group {
+    margin: 0;
 }
 
 button {

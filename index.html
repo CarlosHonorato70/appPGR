@@ -114,6 +114,20 @@
                 <span>Usuário: <span id="current-user">Admin</span></span>
                 <button id="logout-btn" class="logout-btn">Sair</button>
             </div>
+            
+            <!-- Unit Selector Component -->
+            <div class="nav-unit-selector" id="nav-unit-selector">
+                <div class="form-group">
+                    <label for="nav-unit-select">Unidade Ativa:</label>
+                    <select id="nav-unit-select" class="nav-unit-select">
+                        <option value="">Selecione uma unidade...</option>
+                    </select>
+                </div>
+                <p class="unit-required-message" id="unit-required-message" style="display: none;">
+                    ⚠️ Selecione uma unidade para acessar as funcionalidades
+                </p>
+            </div>
+            
             <ul>
                 <li><a href="#dashboard" class="nav-link active">Dashboard</a></li>
                 <li><a href="#gestao-unidades" class="nav-link">Gestão de Unidades</a></li>

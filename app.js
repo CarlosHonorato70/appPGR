@@ -400,6 +400,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.updateNavigationStates = function() {
         const currentUnit = unidadeWorkManager.getCurrentUnidade();
         const hasUnit = !!currentUnit;
+        const unitRequiredMessage = document.getElementById('unit-required-message');
         
         document.querySelectorAll('.nav-link').forEach(function (link) {
             const id = link.getAttribute('href').replace('#', '');
@@ -416,6 +417,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         });
+        
+        // Show/hide unit required message in navigation
+        if (unitRequiredMessage) {
+            if (hasUnit) {
+                unitRequiredMessage.style.display = 'none';
+            } else {
+                unitRequiredMessage.style.display = 'block';
+            }
+        }
     };
 
     // Inicializar sistema após login
@@ -428,7 +438,87 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarUnidadesArmazenadas();
         atualizarRelatorios();
         configurarMascarasInput();
+        inicializarNavegacaoSeletorUnidade(); // Initialize navigation unit selector
         window.updateNavigationStates(); // Atualizar estados das abas
+    }
+
+    // Initialize and manage the navigation unit selector
+    function inicializarNavegacaoSeletorUnidade() {
+        const navUnitSelect = document.getElementById('nav-unit-select');
+        const unitRequiredMessage = document.getElementById('unit-required-message');
+        
+        if (!navUnitSelect) return;
+        
+        // Add event listener for unit selection
+        navUnitSelect.addEventListener('change', async function(e) {
+            const unidadeId = e.target.value;
+            if (unidadeId) {
+                try {
+                    await window.selecionarUnidade(parseInt(unidadeId));
+                    // Update navigation states and hide warning message
+                    window.updateNavigationStates();
+                    unitRequiredMessage.style.display = 'none';
+                } catch (error) {
+                    console.error('Error selecting unit from navigation:', error);
+                }
+            } else {
+                // Clear current unit and update navigation states
+                unidadeWorkManager.currentUnidadeId = null;
+                localStorage.removeItem('currentUnidadeId');
+                window.updateNavigationStates();
+                unitRequiredMessage.style.display = 'block';
+            }
+        });
+        
+        // Load units and populate selector
+        atualizarNavegacaoSeletorUnidade();
+    }
+
+    // Update the navigation unit selector with available units
+    async function atualizarNavegacaoSeletorUnidade() {
+        const navUnitSelect = document.getElementById('nav-unit-select');
+        const unitRequiredMessage = document.getElementById('unit-required-message');
+        
+        if (!navUnitSelect) return;
+        
+        try {
+            const unidades = await pgrStorage.obterDados('unidades') || [];
+            const unidadesAtivas = unidades.filter(u => !u.excluida);
+            
+            // Clear existing options
+            navUnitSelect.innerHTML = '<option value="">Selecione uma unidade...</option>';
+            
+            // Get current unit
+            const currentUnit = unidadeWorkManager.getCurrentUnidade();
+            
+            // Populate with active units
+            unidadesAtivas.forEach(unidade => {
+                const option = document.createElement('option');
+                option.value = unidade.id;
+                option.textContent = unidade.nome;
+                if (currentUnit == unidade.id) {
+                    option.selected = true;
+                }
+                navUnitSelect.appendChild(option);
+            });
+            
+            // Show/hide selector based on available units
+            const navUnitSelector = document.getElementById('nav-unit-selector');
+            if (unidadesAtivas.length > 0) {
+                navUnitSelector.style.display = 'block';
+                // Show warning message if no unit is selected
+                if (!currentUnit) {
+                    unitRequiredMessage.style.display = 'block';
+                } else {
+                    unitRequiredMessage.style.display = 'none';
+                }
+            } else {
+                navUnitSelector.style.display = 'none';
+            }
+            
+        } catch (error) {
+            console.error('Error updating navigation unit selector:', error);
+        }
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -1029,6 +1119,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Atualizar seletor de unidade
             await atualizarSeletorUnidade(unidadesAtivas);
             
+            // Update navigation selector
+            await atualizarNavegacaoSeletorUnidade();
+            
         } catch (error) {
             console.error('Erro ao carregar unidades:', error);
             mostrarMensagemUnidade('Erro ao carregar unidades.', 'error');
@@ -1126,6 +1219,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (unidade) {
                 mostrarMensagemUnidade(`Unidade "${unidade.nome}" selecionada! Todos os trabalhos foram vinculados a esta unidade.`, 'success');
                 carregarUnidadesArmazenadas(); // Recarregar para atualizar indicação visual
+                atualizarNavegacaoSeletorUnidade(); // Update navigation selector
                 window.updateNavigationStates(); // Atualizar estado das abas de navegação
             }
         } catch (error) {
