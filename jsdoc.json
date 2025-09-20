@@ -8,7 +8,8 @@
   "opts": {
     "destination": "./docs/",
     "readme": "./README.md",
-    "recurse": true
+    "recurse": true,
+    "private": false
   },
   "plugins": [
     "plugins/markdown"
@@ -18,8 +19,8 @@
     "monospaceLinks": false
   },
   "metadata": {
-    "title": "Sistema de Gestão de PGR - Documentação",
-    "description": "Documentação técnica do Sistema de Gestão de PGR (Programa de Gerenciamento de Riscos)",
+    "title": "Sistema de Gestão de PGR - Documentação Técnica",
+    "description": "Documentação técnica do Sistema de Gestão de PGR (Programa de Gerenciamento de Riscos) - Uma aplicação web para gestão de riscos ocupacionais em conformidade com a NR-01",
     "author": "Carlos Honorato",
     "version": "1.0.0"
   }

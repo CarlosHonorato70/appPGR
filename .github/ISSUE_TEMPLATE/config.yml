@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussões
+    url: https://github.com/CarlosHonorato70/appPGR/discussions
+    about: Para perguntas gerais e discussões sobre o projeto
+  - name: 🔒 Questões de Segurança
+    url: https://github.com/CarlosHonorato70/appPGR/security/advisories
+    about: Para relatar vulnerabilidades de segurança (não publique aqui)
