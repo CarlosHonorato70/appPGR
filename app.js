@@ -111,6 +111,90 @@ class PGRStorage {
 // Instância global do storage
 const pgrStorage = new PGRStorage();
 
+// Gerenciador de vinculação de trabalhos às unidades
+class UnidadeWorkManager {
+    constructor(storage) {
+        this.storage = storage;
+        this.currentUnidadeId = null;
+        this.workTypes = ['checklist', 'riscos-fisicos', 'riscos-quimicos', 'riscos-biologicos', 
+            'riscos-ergonomicos', 'riscos-acidentes', 'riscos-psicossociais', 'acoes'];
+    }
+
+    // Define a unidade atual
+    async setCurrentUnidade(unidadeId) {
+        this.currentUnidadeId = unidadeId;
+        localStorage.setItem('currentUnidadeId', unidadeId);
+        await this.vincularTodosTrabalhos(unidadeId);
+    }
+
+    // Obtém a unidade atual
+    getCurrentUnidade() {
+        if (!this.currentUnidadeId) {
+            this.currentUnidadeId = localStorage.getItem('currentUnidadeId');
+        }
+        return this.currentUnidadeId;
+    }
+
+    // Vincula todos os trabalhos existentes à unidade especificada
+    async vincularTodosTrabalhos(unidadeId) {
+        try {
+            for (const workType of this.workTypes) {
+                await this.vincularTrabalhosPorTipo(workType, unidadeId);
+            }
+            
+            // Vincular documentos também
+            await this.vincularDocumentos(unidadeId);
+            
+            console.log(`Todos os trabalhos foram vinculados à unidade ${unidadeId}`);
+        } catch (error) {
+            console.error('Erro ao vincular trabalhos:', error);
+        }
+    }
+
+    // Vincula trabalhos de um tipo específico à unidade
+    async vincularTrabalhosPorTipo(workType, unidadeId) {
+        const trabalhos = await this.storage.obterDados(workType) || [];
+        const trabalhosAtualizados = trabalhos.map(trabalho => ({
+            ...trabalho,
+            unidade_id: unidadeId
+        }));
+        
+        if (trabalhosAtualizados.length > 0) {
+            await this.storage.salvarDados(workType, trabalhosAtualizados);
+        }
+    }
+
+    // Vincula documentos à unidade
+    async vincularDocumentos(unidadeId) {
+        try {
+            const documentos = await this.storage.listarDocumentos();
+            for (const doc of documentos) {
+                if (doc.unidade_id !== unidadeId) {
+                    // Atualizar documento com unidade_id
+                    const transaction = this.storage.db.transaction(['documentos'], 'readwrite');
+                    const store = transaction.objectStore('documentos');
+                    const updatedDoc = { ...doc, unidade_id: unidadeId };
+                    await store.put(updatedDoc);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao vincular documentos:', error);
+        }
+    }
+
+    // Adiciona unidade_id a um novo trabalho
+    adicionarUnidadeAoTrabalho(trabalho) {
+        const unidadeId = this.getCurrentUnidade();
+        return {
+            ...trabalho,
+            unidade_id: unidadeId || null
+        };
+    }
+}
+
+// Instância global do gerenciador de unidade-trabalho
+const unidadeWorkManager = new UnidadeWorkManager(pgrStorage);
+
 document.addEventListener('DOMContentLoaded', function () {
     // Login Modal
     const loginModal = document.getElementById('login-modal');
@@ -274,6 +358,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 carregarDocumentosArmazenados();
             } else if (id === 'gestao-unidades') {
                 carregarUnidadesArmazenadas();
+            } else if (id === 'plano-acao') {
+                carregarAcoesNaTabela();
+            } else if (id === 'inventario-riscos') {
+                // Carregar todas as tabelas de riscos
+                const tiposRiscos = ['fisicos', 'quimicos', 'biologicos', 'ergonomicos', 'acidentes', 'psicossociais'];
+                tiposRiscos.forEach(tipo => {
+                    carregarRiscosNaTabela(tipo);
+                });
             }
         });
     });
@@ -282,6 +374,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function inicializarSistema() {
         configurarGestaoDocumentos();
         configurarGestaoUnidades();
+        configurarFormulariosTrabalhos();
         configurarExportacao();
         carregarDocumentosArmazenados();
         carregarUnidadesArmazenadas();
@@ -483,8 +576,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     dataUpload: new Date().toISOString()
                 };
                 
+                // Adicionar unidade_id automaticamente
+                const documentoComUnidade = unidadeWorkManager.adicionarUnidadeAoTrabalho(documento);
+                
                 try {
-                    await pgrStorage.salvarDocumento(documento);
+                    await pgrStorage.salvarDocumento(documentoComUnidade);
                     alert('Documento salvo com sucesso!');
                     formDocumentos.reset();
                     carregarDocumentosArmazenados();
@@ -562,6 +658,201 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    // Configurar formulários de trabalhos
+    function configurarFormulariosTrabalhos() {
+        // Configurar formulários de riscos
+        const tiposRiscos = ['fisicos', 'quimicos', 'biologicos', 'ergonomicos', 'acidentes', 'psicossociais'];
+        
+        tiposRiscos.forEach(tipo => {
+            const form = document.getElementById(`form-riscos-${tipo}`);
+            if (form && !form._handlerConfigured) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await salvarRisco(tipo, form);
+                });
+                form._handlerConfigured = true;
+            }
+        });
+        
+        // Configurar formulário de plano de ação
+        const formAcoes = document.getElementById('form-plano-acao');
+        if (formAcoes && !formAcoes._handlerConfigured) {
+            formAcoes.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await salvarAcao(formAcoes);
+            });
+            formAcoes._handlerConfigured = true;
+        }
+    }
+
+    // Salvar risco
+    async function salvarRisco(tipo, form) {
+        try {
+            const formData = new FormData(form);
+            const risco = {
+                id: Date.now(),
+                tipo: tipo,
+                dataCriacao: new Date().toISOString()
+            };
+            
+            // Capturar dados específicos por tipo de risco
+            for (let [key, value] of formData.entries()) {
+                risco[key] = value;
+            }
+            
+            // Adicionar unidade_id
+            const riscoComUnidade = unidadeWorkManager.adicionarUnidadeAoTrabalho(risco);
+            
+            // Salvar no storage
+            const riscos = await pgrStorage.obterDados(`riscos-${tipo}`) || [];
+            riscos.push(riscoComUnidade);
+            await pgrStorage.salvarDados(`riscos-${tipo}`, riscos);
+            
+            alert(`Risco ${tipo} adicionado com sucesso!`);
+            form.reset();
+            await carregarRiscosNaTabela(tipo);
+            
+        } catch (error) {
+            console.error(`Erro ao salvar risco ${tipo}:`, error);
+            alert(`Erro ao salvar risco ${tipo}. Tente novamente.`);
+        }
+    }
+
+    // Salvar ação
+    async function salvarAcao(form) {
+        try {
+            const descricao = document.getElementById('descricaoAcao').value;
+            const responsavel = document.getElementById('responsavelAcao').value;
+            const prazo = document.getElementById('prazoAcao').value;
+            const status = document.getElementById('statusAcao').value;
+            const nivelRisco = document.getElementById('nivelRiscoAssociado').value;
+            
+            const acao = {
+                id: Date.now(),
+                descricao: descricao,
+                responsavel: responsavel,
+                prazo: prazo,
+                status: status,
+                nivelRisco: nivelRisco,
+                dataCriacao: new Date().toISOString()
+            };
+            
+            // Adicionar unidade_id
+            const acaoComUnidade = unidadeWorkManager.adicionarUnidadeAoTrabalho(acao);
+            
+            // Salvar no storage
+            const acoes = await pgrStorage.obterDados('acoes') || [];
+            acoes.push(acaoComUnidade);
+            await pgrStorage.salvarDados('acoes', acoes);
+            
+            alert('Ação adicionada com sucesso!');
+            form.reset();
+            await carregarAcoesNaTabela();
+            
+        } catch (error) {
+            console.error('Erro ao salvar ação:', error);
+            alert('Erro ao salvar ação. Tente novamente.');
+        }
+    }
+
+    // Carregar riscos na tabela
+    async function carregarRiscosNaTabela(tipo) {
+        try {
+            const riscos = await pgrStorage.obterDados(`riscos-${tipo}`) || [];
+            const tbody = document.querySelector(`#riscos-${tipo}-table tbody`);
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                riscos.forEach(risco => {
+                    const tr = document.createElement('tr');
+                    // Criar células baseadas no tipo de risco
+                    const colunas = getColunasPorTipoRisco(tipo, risco);
+                    tr.innerHTML = colunas + `<td><button onclick="excluirRisco('${tipo}', ${risco.id})">Remover</button></td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            console.error(`Erro ao carregar riscos ${tipo}:`, error);
+        }
+    }
+
+    // Carregar ações na tabela  
+    async function carregarAcoesNaTabela() {
+        try {
+            const acoes = await pgrStorage.obterDados('acoes') || [];
+            const tbody = document.querySelector('#acoes-registradas-table tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                
+                acoes.forEach(acao => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${acao.descricao}</td>
+                        <td>${acao.responsavel}</td>
+                        <td>${new Date(acao.prazo).toLocaleDateString()}</td>
+                        <td><span class="status-${acao.status}">${acao.status}</span></td>
+                        <td><span class="risco-${acao.nivelRisco}">${acao.nivelRisco}</span></td>
+                        <td><button onclick="excluirAcao(${acao.id})">Remover</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao carregar ações:', error);
+        }
+    }
+
+    // Obter colunas por tipo de risco
+    function getColunasPorTipoRisco(tipo, risco) {
+        switch (tipo) {
+        case 'fisicos':
+            return `<td>${risco.tipoRiscoFisico || ''}</td><td>${risco.fonteFisica || ''}</td><td>${risco.medidasControleFisico || ''}</td>`;
+        case 'quimicos':
+            return `<td>${risco.substanciaQuimica || ''}</td><td>${risco.concentracao || ''}</td><td>${risco.medidasControleQuimico || ''}</td>`;
+        case 'biologicos':
+            return `<td>${risco.agenteBiologico || ''}</td><td>${risco.tarefasExpostas || ''}</td><td>${risco.medidasControleBiologico || ''}</td>`;
+        case 'ergonomicos':
+            return `<td>${risco.tipoRiscoErgonomico || ''}</td><td>${risco.atividadeRiscoErgonomico || ''}</td><td>${risco.medidasControleErgonomico || ''}</td>`;
+        case 'acidentes':
+            return `<td>${risco.tipoRiscoAcidente || ''}</td><td>${risco.situacaoRisco || ''}</td><td>${risco.medidasControleAcidentes || ''}</td>`;
+        case 'psicossociais':
+            return `<td>${risco.fatorRiscoPsicossocial || ''}</td><td>${risco.impactoSaude || ''}</td><td>${risco.medidasControlePsicossocial || ''}</td>`;
+        default:
+            return '<td></td><td></td><td></td>';
+        }
+    }
+
+    // Funções globais para exclusão
+    window.excluirRisco = async function(tipo, riscoId) {
+        if (confirm('Tem certeza que deseja excluir este risco?')) {
+            try {
+                const riscos = await pgrStorage.obterDados(`riscos-${tipo}`) || [];
+                const riscosAtualizados = riscos.filter(r => r.id !== riscoId);
+                await pgrStorage.salvarDados(`riscos-${tipo}`, riscosAtualizados);
+                await carregarRiscosNaTabela(tipo);
+                alert('Risco removido com sucesso!');
+            } catch (error) {
+                console.error('Erro ao excluir risco:', error);
+                alert('Erro ao excluir risco.');
+            }
+        }
+    };
+
+    window.excluirAcao = async function(acaoId) {
+        if (confirm('Tem certeza que deseja excluir esta ação?')) {
+            try {
+                const acoes = await pgrStorage.obterDados('acoes') || [];
+                const acoesAtualizadas = acoes.filter(a => a.id !== acaoId);
+                await pgrStorage.salvarDados('acoes', acoesAtualizadas);
+                await carregarAcoesNaTabela();
+                alert('Ação removida com sucesso!');
+            } catch (error) {
+                console.error('Erro ao excluir ação:', error);
+                alert('Erro ao excluir ação.');
+            }
+        }
+    };
+
     // Gestão de Unidades
     function configurarGestaoUnidades() {
         const formUnidades = document.getElementById('form-unidade');
@@ -616,7 +907,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Salvar no IndexedDB
                 await pgrStorage.salvarDados('unidades', unidadesExistentes);
                 
-                mostrarMensagemUnidade('Unidade cadastrada com sucesso!', 'success');
+                // Vincular todos os trabalhos existentes à nova unidade
+                await unidadeWorkManager.vincularTodosTrabalhos(unidade.id);
+                
+                // Definir como unidade atual
+                await unidadeWorkManager.setCurrentUnidade(unidade.id);
+                
+                mostrarMensagemUnidade('Unidade cadastrada com sucesso! Todos os trabalhos foram vinculados a esta unidade.', 'success');
                 formUnidades.reset();
                 carregarUnidadesArmazenadas();
                 
@@ -645,17 +942,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     </td>
                 `;
                 tbody.appendChild(tr);
+                // Esconder seletor de unidade se não há unidades
+                const selectorContainer = document.getElementById('unit-selector-container');
+                if (selectorContainer) {
+                    selectorContainer.style.display = 'none';
+                }
                 return;
             }
             
             unidadesAtivas.forEach(unidade => {
                 const tr = document.createElement('tr');
+                const currentUnit = unidadeWorkManager.getCurrentUnidade();
+                const isCurrentUnit = currentUnit == unidade.id;
+                
                 tr.innerHTML = `
-                    <td>${unidade.nome}</td>
+                    <td>${unidade.nome} ${isCurrentUnit ? '<strong>(Atual)</strong>' : ''}</td>
                     <td>${unidade.cnpj}</td>
                     <td>${unidade.responsavel}</td>
                     <td>
                         <div class="unit-actions">
+                            ${!isCurrentUnit ? `<button class="btn-small btn-select" onclick="selecionarUnidade(${unidade.id})" title="Selecionar como atual">
+                                🎯 Selecionar
+                            </button>` : ''}
                             <button class="btn-small btn-edit" onclick="editarUnidade(${unidade.id})" title="Editar">
                                 ✏️ Editar
                             </button>
@@ -668,9 +976,67 @@ document.addEventListener('DOMContentLoaded', function () {
                 tbody.appendChild(tr);
             });
             
+            // Atualizar seletor de unidade
+            await atualizarSeletorUnidade(unidadesAtivas);
+            
         } catch (error) {
             console.error('Erro ao carregar unidades:', error);
             mostrarMensagemUnidade('Erro ao carregar unidades.', 'error');
+        }
+    }
+
+    // Atualizar seletor de unidade
+    async function atualizarSeletorUnidade(unidades) {
+        // Verificar se o seletor já existe, senão criar
+        let selectorContainer = document.getElementById('unit-selector-container');
+        if (!selectorContainer) {
+            selectorContainer = document.createElement('div');
+            selectorContainer.id = 'unit-selector-container';
+            selectorContainer.className = 'unit-selector-container';
+            selectorContainer.innerHTML = `
+                <h3>Unidade Ativa</h3>
+                <div class="form-group">
+                    <label for="unit-selector">Selecione a unidade para vincular trabalhos:</label>
+                    <select id="unit-selector" class="unit-selector">
+                        <option value="">Selecione uma unidade...</option>
+                    </select>
+                </div>
+                <p class="unit-selector-info">Todos os trabalhos (checklist, riscos, ações, documentos) serão vinculados à unidade selecionada.</p>
+            `;
+            
+            // Inserir após a tabela de unidades
+            const table = document.getElementById('unidades-cadastradas-table');
+            table.insertAdjacentElement('afterend', selectorContainer);
+            
+            // Adicionar event listener
+            const selector = document.getElementById('unit-selector');
+            selector.addEventListener('change', async function(e) {
+                const unidadeId = e.target.value;
+                if (unidadeId) {
+                    await window.selecionarUnidade(parseInt(unidadeId));
+                }
+            });
+        }
+        
+        // Atualizar opções do seletor
+        const selector = document.getElementById('unit-selector');
+        selector.innerHTML = '<option value="">Selecione uma unidade...</option>';
+        
+        const currentUnit = unidadeWorkManager.getCurrentUnidade();
+        
+        unidades.forEach(unidade => {
+            const option = document.createElement('option');
+            option.value = unidade.id;
+            option.textContent = unidade.nome;
+            if (currentUnit == unidade.id) {
+                option.selected = true;
+            }
+            selector.appendChild(option);
+        });
+        
+        // Mostrar o container se há unidades
+        if (unidades.length > 0) {
+            selectorContainer.style.display = 'block';
         }
     }
 
@@ -701,6 +1067,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Funções globais para manipulação de unidades
+    window.selecionarUnidade = async function(unidadeId) {
+        try {
+            await unidadeWorkManager.setCurrentUnidade(unidadeId);
+            const unidades = await pgrStorage.obterDados('unidades') || [];
+            const unidade = unidades.find(u => u.id === unidadeId);
+            
+            if (unidade) {
+                mostrarMensagemUnidade(`Unidade "${unidade.nome}" selecionada! Todos os trabalhos foram vinculados a esta unidade.`, 'success');
+                carregarUnidadesArmazenadas(); // Recarregar para atualizar indicação visual
+            }
+        } catch (error) {
+            console.error('Erro ao selecionar unidade:', error);
+            mostrarMensagemUnidade('Erro ao selecionar unidade.', 'error');
+        }
+    };
+
     window.editarUnidade = async function(id) {
         try {
             const unidades = await pgrStorage.obterDados('unidades') || [];
