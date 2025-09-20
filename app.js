@@ -31,7 +31,7 @@ class PGRStorage {
                 
                 // Store para dados do sistema
                 if (!db.objectStoreNames.contains('dados')) {
-                    const dadosStore = db.createObjectStore('dados', { keyPath: 'tipo' });
+                    db.createObjectStore('dados', { keyPath: 'tipo' });
                 }
                 
                 // Store para usuários
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarUnidadesArmazenadas();
         atualizarRelatorios();
         configurarMascarasInput();
-        updateNavigationStates(); // Atualizar estados das abas
+        window.updateNavigationStates(); // Atualizar estados das abas
     }
 
     // Configurar máscaras de input para CNPJ e telefone
