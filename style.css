@@ -422,9 +422,56 @@ footer {
     background: #c82333;
 }
 
+.btn-select {
+    background: #28a745;
+    color: white;
+}
+
+.btn-select:hover {
+    background: #218838;
+}
+
 .file-info {
     font-size: 0.85em;
     color: #6c757d;
+}
+
+/* Estilos para o seletor de unidade */
+.unit-selector-container {
+    margin: 20px 0;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.unit-selector-container h3 {
+    margin-top: 0;
+    color: #2d89ef;
+    font-size: 1.2em;
+}
+
+.unit-selector {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1em;
+    background: white;
+}
+
+.unit-selector:focus {
+    outline: none;
+    border-color: #2d89ef;
+    box-shadow: 0 0 0 2px rgb(45 137 239 / 25%);
+}
+
+.unit-selector-info {
+    margin: 10px 0 0;
+    font-size: 0.9em;
+    color: #6c757d;
+    font-style: italic;
 }
 
 /* Estilos para impressão */
