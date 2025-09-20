@@ -342,13 +342,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Navegação entre seções
+    // Lista de seções que requerem uma unidade selecionada
+    const sectionsRequiringUnit = [
+        'dashboard', 'checklist-pgr', 'inventario-riscos', 'plano-acao', 
+        'gestao-documentos', 'relatorios-dashboards', 'notificacoes'
+    ];
+    
+    // Função para verificar se uma seção requer unidade
+    function sectionRequiresUnit(sectionId) {
+        return sectionsRequiringUnit.includes(sectionId);
+    }
+    
+    // Função para mostrar mensagem de unidade necessária
+    function showUnitRequiredMessage() {
+        alert('Para acessar esta funcionalidade, primeiro selecione uma unidade na aba "Gestão de Unidades".');
+    }
+
     document.querySelectorAll('.nav-link').forEach(function (link) {
         link.addEventListener('click', function (e) {
             e.preventDefault();
+            const id = link.getAttribute('href').replace('#', '');
+            
+            // Verificar se a seção requer unidade selecionada
+            if (sectionRequiresUnit(id)) {
+                const currentUnit = unidadeWorkManager.getCurrentUnidade();
+                if (!currentUnit) {
+                    showUnitRequiredMessage();
+                    return; // Impedir navegação
+                }
+            }
+            
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
             link.classList.add('active');
             document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
-            const id = link.getAttribute('href').replace('#', '');
             document.getElementById(id).classList.add('active');
             
             // Atualizar dados se entrar na seção de relatórios
@@ -370,6 +396,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Função para atualizar o estado visual das abas baseado na seleção de unidade
+    window.updateNavigationStates = function() {
+        const currentUnit = unidadeWorkManager.getCurrentUnidade();
+        const hasUnit = !!currentUnit;
+        
+        document.querySelectorAll('.nav-link').forEach(function (link) {
+            const id = link.getAttribute('href').replace('#', '');
+            
+            if (sectionRequiresUnit(id)) {
+                if (hasUnit) {
+                    link.classList.remove('disabled');
+                    link.style.opacity = '1';
+                    link.style.cursor = 'pointer';
+                } else {
+                    link.classList.add('disabled');
+                    link.style.opacity = '0.5';
+                    link.style.cursor = 'not-allowed';
+                }
+            }
+        });
+    };
+
     // Inicializar sistema após login
     function inicializarSistema() {
         configurarGestaoDocumentos();
@@ -380,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarUnidadesArmazenadas();
         atualizarRelatorios();
         configurarMascarasInput();
+        updateNavigationStates(); // Atualizar estados das abas
     }
 
     // Configurar máscaras de input para CNPJ e telefone
@@ -916,6 +965,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 mostrarMensagemUnidade('Unidade cadastrada com sucesso! Todos os trabalhos foram vinculados a esta unidade.', 'success');
                 formUnidades.reset();
                 carregarUnidadesArmazenadas();
+                window.updateNavigationStates(); // Atualizar estado das abas de navegação
                 
             } catch (error) {
                 console.error('Erro ao salvar unidade:', error);
@@ -1076,6 +1126,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (unidade) {
                 mostrarMensagemUnidade(`Unidade "${unidade.nome}" selecionada! Todos os trabalhos foram vinculados a esta unidade.`, 'success');
                 carregarUnidadesArmazenadas(); // Recarregar para atualizar indicação visual
+                window.updateNavigationStates(); // Atualizar estado das abas de navegação
             }
         } catch (error) {
             console.error('Erro ao selecionar unidade:', error);

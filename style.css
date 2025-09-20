@@ -82,6 +82,16 @@ nav ul li {
     background: #d0e3ff;
 }
 
+.nav-link.disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    color: #999 !important;
+}
+
+.nav-link.disabled:hover {
+    background: transparent !important;
+}
+
 .user-info {
     float: right;
     margin-right: 24px;
