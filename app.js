@@ -1,10 +1,100 @@
 // Sistema de Gestão de PGR - app.js
 
+/**
+ * Módulo de Segurança - Utilitários para hash de senhas e recuperação de conta
+ * SECURITY: Implementação de boas práticas de segurança para autenticação
+ * Preparado para migração futura para backend
+ */
+class SecurityUtils {
+    constructor() {
+        this.saltRounds = 12; // Número de rounds para o hash bcrypt (aumenta segurança)
+    }
+
+    /**
+     * Gera hash seguro da senha usando bcrypt
+     * @param {string} password - Senha em texto plano
+     * @returns {string} Hash seguro da senha
+     */
+    async hashPassword(password) {
+        try {
+            // SECURITY: Hash da senha no frontend - Em produção, mover para backend
+            const salt = await bcrypt.genSalt(this.saltRounds);
+            const hash = await bcrypt.hash(password, salt);
+            console.log('SECURITY: Senha hasheada com sucesso'); // Log para auditoria
+            return hash;
+        } catch (error) {
+            console.error('SECURITY: Erro ao gerar hash da senha:', error);
+            throw new Error('Erro na criptografia da senha');
+        }
+    }
+
+    /**
+     * Verifica se a senha informada corresponde ao hash armazenado
+     * @param {string} password - Senha em texto plano
+     * @param {string} hash - Hash armazenado
+     * @returns {boolean} True se a senha está correta
+     */
+    async verifyPassword(password, hash) {
+        try {
+            const isValid = await bcrypt.compare(password, hash);
+            console.log('SECURITY: Verificação de senha realizada'); // Log para auditoria
+            return isValid;
+        } catch (error) {
+            console.error('SECURITY: Erro ao verificar senha:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Gera pergunta de segurança aleatória para recuperação de conta
+     * @returns {string} Pergunta de segurança
+     */
+    generateSecurityQuestion() {
+        const questions = [
+            "Qual o nome da sua primeira escola?",
+            "Qual o nome do seu primeiro animal de estimação?",
+            "Qual o nome de solteira da sua mãe?",
+            "Em qual cidade você nasceu?",
+            "Qual era o seu apelido na infância?",
+            "Qual o nome da rua onde você morou na infância?",
+            "Qual sua comida favorita?",
+            "Qual seu filme favorito?"
+        ];
+        return questions[Math.floor(Math.random() * questions.length)];
+    }
+
+    /**
+     * Valida força da senha
+     * @param {string} password - Senha a ser validada
+     * @returns {object} Objeto com isValid e critérios não atendidos
+     */
+    validatePasswordStrength(password) {
+        const criteria = {
+            minLength: password.length >= 8,
+            hasUpperCase: /[A-Z]/.test(password),
+            hasLowerCase: /[a-z]/.test(password),
+            hasNumbers: /\d/.test(password),
+            hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+
+        const isValid = Object.values(criteria).every(criterion => criterion);
+        
+        return {
+            isValid,
+            criteria,
+            missing: Object.keys(criteria).filter(key => !criteria[key])
+        };
+    }
+}
+
+// Instância global do utilitário de segurança
+const securityUtils = new SecurityUtils();
+
 // Armazenamento local usando IndexedDB
 class PGRStorage {
     constructor() {
         this.dbName = 'pgrDB';
-        this.dbVersion = 2;
+        this.dbVersion = 3; // SECURITY: Incrementado para adicionar campos de recuperação de conta
         this.db = null;
         this.initDB();
     }
@@ -34,10 +124,12 @@ class PGRStorage {
                     const dadosStore = db.createObjectStore('dados', { keyPath: 'tipo' });
                 }
                 
-                // Store para usuários
+                // Store para usuários - SECURITY: Aprimorado com campos de recuperação
                 if (!db.objectStoreNames.contains('users')) {
                     const usersStore = db.createObjectStore('users', { keyPath: 'username' });
                     usersStore.createIndex('username', 'username', { unique: true });
+                    // SECURITY: Índice para email para recuperação de conta
+                    usersStore.createIndex('email', 'email', { unique: false });
                 }
             };
         });
@@ -106,6 +198,57 @@ class PGRStorage {
         const usuario = await this.buscarUsuario(username);
         return !!usuario;
     }
+
+    // SECURITY: Métodos para recuperação de conta
+    
+    /**
+     * Busca usuário por email para recuperação de conta
+     * @param {string} email - Email do usuário
+     * @returns {object|null} Dados do usuário ou null
+     */
+    async buscarUsuarioPorEmail(email) {
+        const transaction = this.db.transaction(['users'], 'readonly');
+        const store = transaction.objectStore('users');
+        const index = store.index('email');
+        return new Promise((resolve, reject) => {
+            const request = index.get(email);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Atualiza senha do usuário (para recuperação de conta)
+     * @param {string} username - Nome do usuário
+     * @param {string} newPasswordHash - Nova senha hasheada
+     * @returns {Promise} Resultado da operação
+     */
+    async atualizarSenhaUsuario(username, newPasswordHash) {
+        const transaction = this.db.transaction(['users'], 'readwrite');
+        const store = transaction.objectStore('users');
+        return new Promise((resolve, reject) => {
+            // Buscar usuário atual
+            const getRequest = store.get(username);
+            getRequest.onsuccess = () => {
+                const usuario = getRequest.result;
+                if (usuario) {
+                    // SECURITY: Atualizar apenas a senha e timestamp de alteração
+                    usuario.passwordHash = newPasswordHash;
+                    usuario.passwordUpdatedAt = new Date().toISOString();
+                    
+                    const putRequest = store.put(usuario);
+                    putRequest.onsuccess = () => {
+                        console.log('SECURITY: Senha atualizada para usuário:', username);
+                        resolve(putRequest.result);
+                    };
+                    putRequest.onerror = () => reject(putRequest.error);
+                } else {
+                    reject(new Error('Usuário não encontrado'));
+                }
+            };
+            getRequest.onerror = () => reject(getRequest.error);
+        });
+    }
 }
 
 // Instância global do storage
@@ -134,19 +277,50 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
-        // Verificar usuários cadastrados
+        // SECURITY: Verificar usuários cadastrados com hash de senha
         try {
             const usuario = await pgrStorage.buscarUsuario(username);
-            if (usuario && usuario.password === password) {
-                loginModal.style.display = 'none';
-                mainApp.style.display = '';
-                currentUserSpan.textContent = usuario.fullName || usuario.username;
-                inicializarSistema();
+            if (usuario) {
+                // SECURITY: Verificar se é usuário com senha hasheada ou senha antiga (compatibilidade)
+                let senhaValida = false;
+                
+                if (usuario.passwordHash) {
+                    // SECURITY: Usuário novo com senha hasheada
+                    console.log('SECURITY: Verificando senha hasheada para usuário:', username);
+                    senhaValida = await securityUtils.verifyPassword(password, usuario.passwordHash);
+                } else if (usuario.password) {
+                    // SECURITY: Usuário antigo com senha em texto plano (compatibilidade)
+                    console.log('SECURITY: Usuário com senha em texto plano detectado - considerando migração');
+                    senhaValida = (usuario.password === password);
+                    
+                    // SECURITY: Migrar automaticamente para senha hasheada
+                    if (senhaValida) {
+                        try {
+                            console.log('SECURITY: Migrando senha para hash...');
+                            const passwordHash = await securityUtils.hashPassword(password);
+                            await pgrStorage.atualizarSenhaUsuario(username, passwordHash);
+                            console.log('SECURITY: Senha migrada com sucesso para hash');
+                        } catch (migrationError) {
+                            console.error('SECURITY: Erro ao migrar senha:', migrationError);
+                            // Não falha o login, apenas registra o erro
+                        }
+                    }
+                }
+                
+                if (senhaValida) {
+                    console.log('SECURITY: Login bem-sucedido para usuário:', username);
+                    loginModal.style.display = 'none';
+                    mainApp.style.display = '';
+                    currentUserSpan.textContent = usuario.fullName || usuario.username;
+                    inicializarSistema();
+                } else {
+                    alert('Usuário ou senha inválidos!');
+                }
             } else {
                 alert('Usuário ou senha inválidos!');
             }
         } catch (error) {
-            console.error('Erro ao fazer login:', error);
+            console.error('SECURITY: Erro ao fazer login:', error);
             alert('Erro ao fazer login. Tente novamente.');
         }
     });
@@ -191,28 +365,300 @@ document.addEventListener('DOMContentLoaded', function () {
         registerMessage.style.display = 'none';
     }
 
-    // Processamento do formulário de registro
+    // SECURITY: Gerar pergunta de segurança automaticamente
+    document.getElementById('generate-security-question').addEventListener('click', function() {
+        const question = securityUtils.generateSecurityQuestion();
+        document.getElementById('reg-security-question').value = question;
+    });
+
+    // SECURITY: Gerar pergunta inicial
+    document.addEventListener('DOMContentLoaded', function() {
+        const securityQuestionField = document.getElementById('reg-security-question');
+        if (securityQuestionField && !securityQuestionField.value) {
+            securityQuestionField.value = securityUtils.generateSecurityQuestion();
+        }
+    });
+
+    // SECURITY: Modal de Recuperação de Senha
+    const recoveryModal = document.getElementById('recovery-modal');
+    const recoveryForm = document.getElementById('recovery-form');
+    const forgotPasswordBtn = document.getElementById('forgot-password-btn');
+    const cancelRecoveryBtn = document.getElementById('cancel-recovery-btn');
+    const recoveryMessage = document.getElementById('recovery-message');
+    
+    let recoveryCurrentStep = 1;
+    let recoveryUserData = null;
+
+    // Mostrar modal de recuperação
+    forgotPasswordBtn.addEventListener('click', function () {
+        loginModal.style.display = 'none';
+        recoveryModal.style.display = '';
+        resetRecoveryForm();
+    });
+
+    // Cancelar recuperação
+    cancelRecoveryBtn.addEventListener('click', function () {
+        recoveryModal.style.display = 'none';
+        loginModal.style.display = '';
+        resetRecoveryForm();
+    });
+
+    function resetRecoveryForm() {
+        recoveryForm.reset();
+        recoveryCurrentStep = 1;
+        showRecoveryStep(1);
+        hideRecoveryMessage();
+        recoveryUserData = null;
+    }
+
+    function showRecoveryStep(step) {
+        // Esconder todos os steps
+        document.getElementById('recovery-step-1').style.display = 'none';
+        document.getElementById('recovery-step-2').style.display = 'none';
+        document.getElementById('recovery-step-3').style.display = 'none';
+        
+        // Mostrar step atual
+        document.getElementById(`recovery-step-${step}`).style.display = 'block';
+        
+        // Controlar botões
+        const nextBtn = document.getElementById('recovery-next-btn');
+        const prevBtn = document.getElementById('recovery-previous-btn');
+        const submitBtn = document.getElementById('recovery-submit-btn');
+        
+        nextBtn.style.display = step < 3 ? 'inline-block' : 'none';
+        prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
+        submitBtn.style.display = step === 3 ? 'inline-block' : 'none';
+    }
+
+    function showRecoveryMessage(text, type) {
+        recoveryMessage.textContent = text;
+        recoveryMessage.className = `message ${type}`;
+        recoveryMessage.style.display = 'block';
+    }
+
+    function hideRecoveryMessage() {
+        recoveryMessage.style.display = 'none';
+    }
+
+    // SECURITY: Navegação do formulário de recuperação
+    document.getElementById('recovery-next-btn').addEventListener('click', async function() {
+        if (recoveryCurrentStep === 1) {
+            await processRecoveryStep1();
+        } else if (recoveryCurrentStep === 2) {
+            await processRecoveryStep2();
+        }
+    });
+
+    document.getElementById('recovery-previous-btn').addEventListener('click', function() {
+        recoveryCurrentStep--;
+        showRecoveryStep(recoveryCurrentStep);
+        hideRecoveryMessage();
+    });
+
+    // SECURITY: Alternar método de recuperação
+    document.querySelectorAll('input[name="recovery-method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const emailRecovery = document.getElementById('email-recovery');
+            const securityRecovery = document.getElementById('security-recovery');
+            
+            if (this.value === 'email') {
+                emailRecovery.style.display = 'block';
+                securityRecovery.style.display = 'none';
+            } else {
+                emailRecovery.style.display = 'none';
+                securityRecovery.style.display = 'block';
+            }
+        });
+    });
+
+    // SECURITY: Processar Step 1 - Identificação
+    async function processRecoveryStep1() {
+        const username = document.getElementById('recovery-username').value.trim();
+        const recoveryMethod = document.querySelector('input[name="recovery-method"]:checked').value;
+
+        if (!username) {
+            showRecoveryMessage('Digite seu nome de usuário.', 'error');
+            return;
+        }
+
+        try {
+            showRecoveryMessage('Verificando usuário...', 'info');
+            const usuario = await pgrStorage.buscarUsuario(username);
+            
+            if (!usuario) {
+                showRecoveryMessage('Usuário não encontrado.', 'error');
+                return;
+            }
+
+            recoveryUserData = usuario;
+
+            if (recoveryMethod === 'email') {
+                if (!usuario.email) {
+                    showRecoveryMessage('Este usuário não tem email cadastrado para recuperação. Use pergunta de segurança.', 'error');
+                    document.getElementById('recovery-security').checked = true;
+                    document.getElementById('email-recovery').style.display = 'none';
+                    document.getElementById('security-recovery').style.display = 'block';
+                    return;
+                }
+                // Mascarar email
+                const email = usuario.email;
+                const [localPart, domain] = email.split('@');
+                const maskedLocal = localPart.substring(0, 2) + '*'.repeat(localPart.length - 2);
+                const maskedEmail = maskedLocal + '@' + domain;
+                document.getElementById('masked-email').textContent = maskedEmail;
+            } else {
+                if (!usuario.securityQuestion || !usuario.securityAnswerHash) {
+                    showRecoveryMessage('Este usuário não tem pergunta de segurança cadastrada. Entre em contato com o administrador.', 'error');
+                    return;
+                }
+                document.getElementById('security-question-display').textContent = usuario.securityQuestion;
+            }
+
+            recoveryCurrentStep = 2;
+            showRecoveryStep(2);
+            hideRecoveryMessage();
+
+        } catch (error) {
+            console.error('SECURITY: Erro no Step 1 de recuperação:', error);
+            showRecoveryMessage('Erro ao verificar usuário. Tente novamente.', 'error');
+        }
+    }
+
+    // SECURITY: Processar Step 2 - Verificação
+    async function processRecoveryStep2() {
+        const recoveryMethod = document.querySelector('input[name="recovery-method"]:checked').value;
+
+        try {
+            if (recoveryMethod === 'email') {
+                const emailConfirm = document.getElementById('recovery-email-confirm').value.trim();
+                if (!emailConfirm || emailConfirm !== recoveryUserData.email) {
+                    showRecoveryMessage('Email não confere com o cadastrado.', 'error');
+                    return;
+                }
+            } else {
+                const securityAnswer = document.getElementById('recovery-security-answer').value.trim();
+                if (!securityAnswer) {
+                    showRecoveryMessage('Digite a resposta da pergunta de segurança.', 'error');
+                    return;
+                }
+
+                console.log('SECURITY: Verificando resposta de segurança...');
+                const isAnswerValid = await securityUtils.verifyPassword(securityAnswer.toLowerCase(), recoveryUserData.securityAnswerHash);
+                if (!isAnswerValid) {
+                    showRecoveryMessage('Resposta da pergunta de segurança incorreta.', 'error');
+                    return;
+                }
+            }
+
+            recoveryCurrentStep = 3;
+            showRecoveryStep(3);
+            hideRecoveryMessage();
+
+        } catch (error) {
+            console.error('SECURITY: Erro no Step 2 de recuperação:', error);
+            showRecoveryMessage('Erro na verificação. Tente novamente.', 'error');
+        }
+    }
+
+    // SECURITY: Processar formulário de recuperação (Step 3)
+    recoveryForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const newPassword = document.getElementById('recovery-new-password').value;
+        const newPasswordConfirm = document.getElementById('recovery-new-password-confirm').value;
+
+        // SECURITY: Validar nova senha
+        const passwordStrength = securityUtils.validatePasswordStrength(newPassword);
+        if (!passwordStrength.isValid) {
+            let missingCriteria = passwordStrength.missing.map(criterion => {
+                switch(criterion) {
+                    case 'minLength': return 'pelo menos 8 caracteres';
+                    case 'hasUpperCase': return 'uma letra maiúscula';
+                    case 'hasLowerCase': return 'uma letra minúscula';
+                    case 'hasNumbers': return 'um número';
+                    case 'hasSpecialChar': return 'um caractere especial (!@#$%^&*)';
+                    default: return criterion;
+                }
+            }).join(', ');
+            showRecoveryMessage(`Nova senha deve ter: ${missingCriteria}`, 'error');
+            return;
+        }
+
+        if (newPassword !== newPasswordConfirm) {
+            showRecoveryMessage('As novas senhas não coincidem.', 'error');
+            return;
+        }
+
+        try {
+            showRecoveryMessage('Atualizando senha...', 'info');
+            
+            // SECURITY: Hash da nova senha
+            const newPasswordHash = await securityUtils.hashPassword(newPassword);
+            
+            // SECURITY: Atualizar senha no banco
+            await pgrStorage.atualizarSenhaUsuario(recoveryUserData.username, newPasswordHash);
+            
+            console.log('SECURITY: Senha redefinida com sucesso para usuário:', recoveryUserData.username);
+            showRecoveryMessage('Senha redefinida com sucesso! Você será redirecionado para o login.', 'success');
+            
+            // Voltar para login após 3 segundos
+            setTimeout(() => {
+                recoveryModal.style.display = 'none';
+                loginModal.style.display = '';
+                resetRecoveryForm();
+                // Pré-preencher o usuário
+                document.getElementById('username').value = recoveryUserData.username;
+            }, 3000);
+
+        } catch (error) {
+            console.error('SECURITY: Erro ao redefinir senha:', error);
+            showRecoveryMessage('Erro ao redefinir senha. Tente novamente.', 'error');
+        }
+    });
+
+    // Processamento do formulário de registro - SECURITY: Atualizado com hash de senha
     registerForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         
         const username = document.getElementById('reg-username').value.trim();
         const fullName = document.getElementById('reg-fullname').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
         const password = document.getElementById('reg-password').value;
         const passwordConfirm = document.getElementById('reg-password-confirm').value;
+        const securityQuestion = document.getElementById('reg-security-question').value;
+        const securityAnswer = document.getElementById('reg-security-answer').value.trim();
 
-        // Validações
+        // SECURITY: Validações aprimoradas de senha
         if (username.length < 3) {
             showMessage('O nome de usuário deve ter pelo menos 3 caracteres.', 'error');
             return;
         }
 
-        if (password.length < 6) {
-            showMessage('A senha deve ter pelo menos 6 caracteres.', 'error');
+        // SECURITY: Validação de força da senha
+        const passwordStrength = securityUtils.validatePasswordStrength(password);
+        if (!passwordStrength.isValid) {
+            let missingCriteria = passwordStrength.missing.map(criterion => {
+                switch(criterion) {
+                    case 'minLength': return 'pelo menos 8 caracteres';
+                    case 'hasUpperCase': return 'uma letra maiúscula';
+                    case 'hasLowerCase': return 'uma letra minúscula';
+                    case 'hasNumbers': return 'um número';
+                    case 'hasSpecialChar': return 'um caractere especial (!@#$%^&*)';
+                    default: return criterion;
+                }
+            }).join(', ');
+            showMessage(`Senha deve ter: ${missingCriteria}`, 'error');
             return;
         }
 
         if (password !== passwordConfirm) {
             showMessage('As senhas não coincidem.', 'error');
+            return;
+        }
+
+        // SECURITY: Validar pergunta e resposta de segurança se fornecidas
+        if (securityQuestion && !securityAnswer) {
+            showMessage('Se você definir uma pergunta de segurança, deve fornecer uma resposta.', 'error');
             return;
         }
 
@@ -223,6 +669,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
+            showMessage('Criando conta... Por favor, aguarde.', 'info');
+            
             // Verificar se usuário já existe
             const usuarioExiste = await pgrStorage.verificarUsuarioExiste(username);
             if (usuarioExiste) {
@@ -230,15 +678,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Salvar novo usuário
+            // SECURITY: Gerar hash da senha
+            console.log('SECURITY: Iniciando hash da senha...');
+            const passwordHash = await securityUtils.hashPassword(password);
+            console.log('SECURITY: Hash da senha gerado com sucesso');
+
+            // SECURITY: Hash da resposta de segurança se fornecida
+            let securityAnswerHash = null;
+            if (securityAnswer) {
+                securityAnswerHash = await securityUtils.hashPassword(securityAnswer.toLowerCase());
+                console.log('SECURITY: Hash da resposta de segurança gerado');
+            }
+
+            // SECURITY: Salvar novo usuário com dados de recuperação
             const novoUsuario = {
                 username: username,
                 fullName: fullName,
-                password: password,
-                createdAt: new Date().toISOString()
+                email: email || null, // SECURITY: Email para recuperação
+                passwordHash: passwordHash, // SECURITY: Senha hasheada
+                securityQuestion: securityQuestion || null, // SECURITY: Pergunta de segurança
+                securityAnswerHash: securityAnswerHash, // SECURITY: Resposta hasheada
+                createdAt: new Date().toISOString(),
+                passwordUpdatedAt: new Date().toISOString() // SECURITY: Timestamp da última alteração de senha
             };
 
             await pgrStorage.salvarUsuario(novoUsuario);
+            console.log('SECURITY: Usuário criado com dados de recuperação');
             showMessage('Conta criada com sucesso! Você pode fazer login agora.', 'success');
 
             // Voltar para login após 2 segundos

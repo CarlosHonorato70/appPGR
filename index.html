@@ -38,6 +38,8 @@
     <script src="libs/jspdf.umd.min.js"></script>
     <script src="libs/html2pdf.bundle.min.js"></script>
     <script src="libs/xlsx.full.min.js"></script>
+    <!-- Biblioteca para hash de senhas - Segurança aprimorada -->
+    <script src="libs/bcrypt.min.js"></script>
 </head>
 <body>
     <header>
@@ -70,6 +72,8 @@
                 </div>
                 <button type="submit">Entrar</button>
                 <button type="button" id="show-register-btn" class="secondary-btn">Criar nova conta</button>
+                <!-- SECURITY: Botão para recuperação de senha -->
+                <button type="button" id="forgot-password-btn" class="link-btn">Esqueceu sua senha?</button>
                 <p class="login-info">Usuário padrão: admin / Senha: admin123</p>
             </form>
         </div>
@@ -91,19 +95,100 @@
                     <label for="reg-fullname">Nome Completo:</label>
                     <input type="text" id="reg-fullname" required placeholder="Digite seu nome completo">
                 </div>
+                <!-- SECURITY: Campos para recuperação de conta -->
+                <div class="form-group">
+                    <label for="reg-email">Email (para recuperação):</label>
+                    <input type="email" id="reg-email" placeholder="Digite seu email (opcional para recuperação)">
+                </div>
                 <div class="form-group">
                     <label for="reg-password">Senha:</label>
-                    <input type="password" id="reg-password" required placeholder="Digite uma senha (mínimo 6 caracteres)" minlength="6">
+                    <input type="password" id="reg-password" required placeholder="Digite uma senha segura (mínimo 8 caracteres)" minlength="8">
+                    <small class="password-hint">Dica: Use pelo menos 8 caracteres com letras maiúsculas, minúsculas, números e símbolos</small>
                 </div>
                 <div class="form-group">
                     <label for="reg-password-confirm">Confirmar Senha:</label>
                     <input type="password" id="reg-password-confirm" required placeholder="Digite a senha novamente">
+                </div>
+                <!-- SECURITY: Campo para pergunta de segurança -->
+                <div class="form-group">
+                    <label for="reg-security-question">Pergunta de Segurança:</label>
+                    <input type="text" id="reg-security-question" readonly placeholder="Pergunta será gerada automaticamente">
+                    <button type="button" id="generate-security-question" class="btn-small">Gerar Nova Pergunta</button>
+                </div>
+                <div class="form-group">
+                    <label for="reg-security-answer">Resposta da Pergunta de Segurança:</label>
+                    <input type="text" id="reg-security-answer" placeholder="Digite sua resposta (será usada para recuperação)">
                 </div>
                 <div class="form-buttons">
                     <button type="submit">Criar Conta</button>
                     <button type="button" id="cancel-register-btn" class="secondary-btn">Cancelar</button>
                 </div>
                 <div id="register-message" class="message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SECURITY: Modal para Recuperação de Senha -->
+    <div id="recovery-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="login-logo">
+                <img src="assets/images/black-belt-logo.svg" alt="Black Belt Consultoria" class="logo-login">
+            </div>
+            <h2>Recuperação de Senha - Sistema PGR</h2>
+            <form id="recovery-form">
+                <div id="recovery-step-1">
+                    <h3>Primeira Etapa: Identificação</h3>
+                    <div class="form-group">
+                        <label for="recovery-username">Nome de Usuário:</label>
+                        <input type="text" id="recovery-username" required placeholder="Digite seu nome de usuário">
+                    </div>
+                    <div class="form-group">
+                        <label>Método de Recuperação:</label>
+                        <div class="radio-group">
+                            <input type="radio" id="recovery-email" name="recovery-method" value="email">
+                            <label for="recovery-email">Email</label>
+                            <input type="radio" id="recovery-security" name="recovery-method" value="security" checked>
+                            <label for="recovery-security">Pergunta de Segurança</label>
+                        </div>
+                    </div>
+                </div>
+                <div id="recovery-step-2" style="display: none;">
+                    <h3>Segunda Etapa: Verificação</h3>
+                    <div id="email-recovery" style="display: none;">
+                        <p>Se você cadastrou um email, ele será exibido parcialmente abaixo:</p>
+                        <p id="masked-email"></p>
+                        <div class="form-group">
+                            <label for="recovery-email-confirm">Confirme seu Email:</label>
+                            <input type="email" id="recovery-email-confirm" placeholder="Digite seu email completo">
+                        </div>
+                    </div>
+                    <div id="security-recovery">
+                        <p><strong>Pergunta de Segurança:</strong></p>
+                        <p id="security-question-display"></p>
+                        <div class="form-group">
+                            <label for="recovery-security-answer">Sua Resposta:</label>
+                            <input type="text" id="recovery-security-answer" placeholder="Digite sua resposta">
+                        </div>
+                    </div>
+                </div>
+                <div id="recovery-step-3" style="display: none;">
+                    <h3>Terceira Etapa: Nova Senha</h3>
+                    <div class="form-group">
+                        <label for="recovery-new-password">Nova Senha:</label>
+                        <input type="password" id="recovery-new-password" required placeholder="Digite uma senha segura" minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="recovery-new-password-confirm">Confirmar Nova Senha:</label>
+                        <input type="password" id="recovery-new-password-confirm" required placeholder="Digite a nova senha novamente">
+                    </div>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" id="recovery-next-btn">Próximo</button>
+                    <button type="button" id="recovery-previous-btn" style="display: none;">Anterior</button>
+                    <button type="submit" id="recovery-submit-btn" style="display: none;">Redefinir Senha</button>
+                    <button type="button" id="cancel-recovery-btn" class="secondary-btn">Cancelar</button>
+                </div>
+                <div id="recovery-message" class="message" style="display: none;"></div>
             </form>
         </div>
     </div>
