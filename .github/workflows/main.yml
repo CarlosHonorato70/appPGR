@@ -1,0 +1,101 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linters
+      run: |
+        echo "Running JavaScript linter..."
+        npm run lint:js
+        echo "Running HTML linter..."
+        npm run lint:html
+        echo "Running CSS linter..."
+        npm run lint:css
+        
+    - name: Validate HTML
+      run: npm run validate
+      
+    - name: Security audit
+      run: npm audit --audit-level moderate
+      continue-on-error: true
+      
+    - name: Generate documentation
+      run: npm run docs
+      
+    - name: Test application startup
+      run: |
+        npm start &
+        SERVER_PID=$!
+        sleep 5
+        curl -f http://localhost:8080 || exit 1
+        kill $SERVER_PID
+        
+  build:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          docs/
+          index.html
+          app.js
+          style.css
+          assets/
+          libs/
+        retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+        
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3

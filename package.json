@@ -1,0 +1,43 @@
+{
+  "name": "app-pgr",
+  "version": "1.0.0",
+  "description": "Sistema de Gestão de PGR - Programa de Gerenciamento de Riscos",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -c-1 -p 8080",
+    "lint:js": "eslint app.js --fix",
+    "lint:html": "htmlhint index.html",
+    "lint:css": "stylelint style.css --fix",
+    "lint": "npm run lint:js && npm run lint:html && npm run lint:css",
+    "test": "echo 'Frontend-only application: tests would require browser automation'",
+    "docs": "jsdoc app.js -d docs",
+    "security": "npm audit --audit-level moderate",
+    "validate": "html-validate index.html --config .htmlvalidate.json",
+    "build": "npm run lint && npm run validate && npm run docs"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "htmlhint": "^1.1.4",
+    "stylelint": "^16.2.1",
+    "stylelint-config-standard": "^36.0.0",
+    "http-server": "^14.1.1",
+    "jsdoc": "^4.0.2",
+    "html-validate": "^8.9.1"
+  },
+  "keywords": [
+    "pgr",
+    "risk-management",
+    "safety",
+    "nr-01",
+    "html",
+    "javascript",
+    "frontend"
+  ],
+  "author": "Carlos Honorato",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CarlosHonorato70/appPGR.git"
+  },
+  "homepage": "https://github.com/CarlosHonorato70/appPGR#readme"
+}

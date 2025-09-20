@@ -1,0 +1,8 @@
+{
+  "extends": ["html-validate:recommended"],
+  "rules": {
+    "wcag/h63": "off",
+    "no-implicit-button-type": "warn",
+    "no-trailing-whitespace": "off"
+  }
+}
