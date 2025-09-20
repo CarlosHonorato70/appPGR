@@ -1,0 +1,35 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "rules": {
+    "indent": ["error", 4],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "no-debugger": "error"
+  },
+  "globals": {
+    "indexedDB": "readonly",
+    "window": "readonly",
+    "document": "readonly",
+    "localStorage": "readonly",
+    "alert": "readonly",
+    "confirm": "readonly",
+    "FileReader": "readonly",
+    "Blob": "readonly",
+    "URL": "readonly",
+    "XLSX": "readonly",
+    "html2pdf": "readonly",
+    "jsPDF": "readonly"
+  }
+}
