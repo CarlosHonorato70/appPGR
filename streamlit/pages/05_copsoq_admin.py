@@ -65,7 +65,7 @@ with tab1:
             )
             # Link para o formulário com token
             link = f"{APP_BASE_URL}/COPSOQ-II?token={inv['token']}"
-            html = render_invite_email(employee_name=inv['employee_name'], link=link)
+            html = render_invite_email(employee_name=inv["employee_name"], invite_link=link, assessment_name="COPSOQ-II")
             try:
                 send_email(inv['employee_email'], 'Convite - COPSOQ-II (NR-01)', html)
                 copsoq_invites_manager.mark_sent(inv['id'])
@@ -172,3 +172,4 @@ with tab3:
         st.download_button('Baixar Respostas (CSV)', data=df_r.to_csv(index=False), file_name='copsoq_responses.csv', mime='text/csv')
     else:
         st.info('Sem respostas para exportar.')
+
