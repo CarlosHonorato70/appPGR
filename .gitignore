@@ -1,11 +1,17 @@
-﻿node_modules/
-.env.local
-dist/
-build/
+﻿# Credenciais e configs locais
+.env
+*.env
+.env.*
+
+# Bancos/arquivos locais do app
+*_db.json
+*.sqlite
+
+# Cache/artefatos
 __pycache__/
-*.pyc
-.streamlit/secrets.toml
-.DS_Store
 *.log
-.venv/
-venv/
+*.py[cod]
+*.DS_Store
+
+# Streamlit cache
+.streamlit/
