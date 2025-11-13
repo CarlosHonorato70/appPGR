@@ -4,10 +4,13 @@ import pandas as pd
 import os
 import sys
 from datetime import datetime
+import plotly.graph_objects as go
+import plotly.express as px
 
 sys.path.insert(0, 'utils')
 from services_manager import manager
 from proposals_manager import proposals_manager
+from risk_assessments_manager import risk_assessments_manager
 
 st.set_page_config(
     page_title="Black Belt - Gestão Integrada",
@@ -36,6 +39,22 @@ st.markdown("""
         border-radius: 8px;
         border-left: 4px solid #667eea;
         margin-bottom: 10px;
+    }
+    .risk-card-baixo {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+    }
+    .risk-card-medio {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    .risk-card-alto {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+    .risk-card-muito_alto {
+        background-color: #f5c6cb;
+        border-left: 4px solid #721c24;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -78,24 +97,29 @@ if selected == "Dashboard":
     
     services = load_services()
     proposals = proposals_manager.get_all_proposals()
+    assessments = risk_assessments_manager.get_all_assessments()
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.metric("Total de Serviços", len(services))
+        st.metric("Serviços", len(services))
     with col2:
         propostas_aprovadas = len([p for p in proposals if p['status'] == 'approved'])
-        st.metric("Propostas Aprovadas", propostas_aprovadas)
+        st.metric("Propostas OK", propostas_aprovadas)
     with col3:
         total_propostas = len(proposals)
-        st.metric("Total de Propostas", total_propostas)
+        st.metric("Propostas", total_propostas)
     with col4:
-        draft_propostas = len([p for p in proposals if p['status'] == 'draft'])
-        st.metric("Em Rascunho", draft_propostas)
+        total_assessments = len(assessments)
+        st.metric("Avaliações", total_assessments)
+    with col5:
+        if proposals:
+            total_value = sum(p['final_total'] for p in proposals)
+            st.metric("Faturamento", f"R\$ {total_value/1000:.0f}k")
     
     st.divider()
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.subheader("📈 Propostas por Status")
@@ -111,18 +135,34 @@ if selected == "Dashboard":
                 df_status = pd.DataFrame(status_data)
                 st.bar_chart(df_status.set_index("Status"))
         else:
-            st.info("Nenhuma proposta criada ainda")
+            st.info("Nenhuma proposta criada")
     
     with col2:
-        st.subheader("💰 Valor Total de Propostas")
+        st.subheader("🛡️ Riscos por Nível")
+        if assessments:
+            risk_data = {"Nível": [], "Qtd": []}
+            for level in ["Baixo", "Médio", "Alto", "Muito Alto"]:
+                count = len([a for a in assessments if a['risk_level'] == level])
+                if count > 0:
+                    risk_data["Nível"].append(level)
+                    risk_data["Qtd"].append(count)
+            
+            if risk_data["Nível"]:
+                df_risk = pd.DataFrame(risk_data)
+                st.bar_chart(df_risk.set_index("Nível"))
+        else:
+            st.info("Nenhuma avaliação criada")
+    
+    with col3:
+        st.subheader("💰 Valor Total")
         if proposals:
             total_value = sum(p['final_total'] for p in proposals)
-            st.metric("Valor Total", f"R\$ {total_value:,.2f}")
+            st.metric("Propostas", f"R\$ {total_value:,.2f}")
             
             avg_value = total_value / len(proposals)
-            st.metric("Valor Médio", f"R\$ {avg_value:,.2f}")
+            st.metric("Média", f"R\$ {avg_value:,.2f}")
         else:
-            st.info("Nenhuma proposta criada ainda")
+            st.info("Nenhuma proposta")
 
 # ===== PRECIFICAÇÃO =====
 elif selected == "Precificação":
@@ -436,33 +476,584 @@ elif selected == "Propostas":
 
 # ===== AVALIAÇÃO DE RISCOS =====
 elif selected == "Avaliação de Riscos":
-    st.markdown("<h1 class='header-title'>🛡️ Avaliação de Riscos NR-01</h1>", unsafe_allow_html=True)
-    st.write("Módulo de avaliação de riscos psicossociais (em desenvolvimento)")
+    st.markdown("<h1 class='header-title'>🛡️ Avaliação de Riscos Psicossociais NR-01</h1>", unsafe_allow_html=True)
+    st.write("Avaliação de riscos psicossociais conforme NR-01")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Nova Avaliação", "📋 Histórico", "👁️ Visualizar", "📊 Relatório"])
+    
+    with tab1:
+        st.subheader("➕ Criar Nova Avaliação")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            client_name = st.text_input("Nome do Cliente", placeholder="Ex: Empresa XYZ Ltda", key="risk_client")
+            sector = st.text_input("Setor/Ramo", placeholder="Ex: Tecnologia, Indústria, Comércio")
+            employees_count = st.number_input("Número de Funcionários", min_value=1, value=50)
+        
+        with col2:
+            st.write("**Avaliação de Fatores**")
+            st.write("*Escala: 0 (Excelente) - 10 (Péssimo)*")
+        
+        st.divider()
+        
+        st.subheader("📊 Dimensões da Avaliação")
+        
+        # Dimensão 1: Organização do Trabalho
+        st.write("**Dimensão 1: Organização do Trabalho**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            workload = st.slider(
+                "Carga de Trabalho (0-10)",
+                0, 10, 5,
+                help="0=Carga apropriada | 10=Sobrecarga extrema"
+            )
+        
+        with col2:
+            work_pace = st.slider(
+                "Ritmo de Trabalho (0-10)",
+                0, 10, 5,
+                help="0=Ritmo adequado | 10=Ritmo acelerado"
+            )
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            scheduling = st.slider(
+                "Jornada Excessiva (0-10)",
+                0, 10, 3,
+                help="0=Jornada normal | 10=Jornada extrema"
+            )
+        
+        with col2:
+            work_breaks = st.slider(
+                "Falta de Pausas (0-10)",
+                0, 10, 4,
+                help="0=Pausas adequadas | 10=Sem pausas"
+            )
+        
+        st.divider()
+        
+        # Dimensão 2: Condições de Trabalho
+        st.write("**Dimensão 2: Condições e Ambiente de Trabalho**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            work_control = st.slider(
+                "Controle sobre o Trabalho (0-10)",
+                0, 10, 5,
+                help="0=Alto controle | 10=Nenhum controle"
+            )
+        
+        with col2:
+            autonomy = st.slider(
+                "Autonomia (0-10)",
+                0, 10, 5,
+                help="0=Alta autonomia | 10=Sem autonomia"
+            )
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            physical_conditions = st.slider(
+                "Condições Físicas do Ambiente (0-10)",
+                0, 10, 4,
+                help="0=Excelentes | 10=Péssimas"
+            )
+        
+        with col2:
+            safety = st.slider(
+                "Segurança Física (0-10)",
+                0, 10, 3,
+                help="0=Muito seguro | 10=Muito inseguro"
+            )
+        
+        st.divider()
+        
+        # Dimensão 3: Relações Sociais
+        st.write("**Dimensão 3: Relações Sociais e Suporte**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            social_support = st.slider(
+                "Apoio Social da Equipe (0-10)",
+                0, 10, 6,
+                help="0=Alto apoio | 10=Nenhum apoio"
+            )
+        
+        with col2:
+            management_support = st.slider(
+                "Apoio da Gestão (0-10)",
+                0, 10, 5,
+                help="0=Gestão apoiadora | 10=Gestão ausente"
+            )
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            communication = st.slider(
+                "Comunicação Interna (0-10)",
+                0, 10, 5,
+                help="0=Excelente | 10=Péssima"
+            )
+        
+        with col2:
+            workplace_violence = st.slider(
+                "Risco de Violência (0-10)",
+                0, 10, 2,
+                help="0=Nenhum risco | 10=Alto risco"
+            )
+        
+        st.divider()
+        
+        # Dimensão 4: Perspectivas de Futuro
+        st.write("**Dimensão 4: Perspectivas de Futuro e Desenvolvimento**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            job_security = st.slider(
+                "Segurança no Emprego (0-10)",
+                0, 10, 5,
+                help="0=Seguro | 10=Muito inseguro"
+            )
+        
+        with col2:
+            career_development = st.slider(
+                "Desenvolvimento Profissional (0-10)",
+                0, 10, 4,
+                help="0=Alto desenvolvimento | 10=Nenhum desenvolvimento"
+            )
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            recognition = st.slider(
+                "Reconhecimento (0-10)",
+                0, 10, 5,
+                help="0=Bem reconhecido | 10=Não reconhecido"
+            )
+        
+        with col2:
+            fairness = st.slider(
+                "Equidade de Tratamento (0-10)",
+                0, 10, 4,
+                help="0=Muito justo | 10=Muito injusto"
+            )
+        
+        st.divider()
+        
+        # Recomendações
+        st.subheader("💡 Recomendações")
+        recommendations = st.text_area(
+            "Descreva as recomendações para melhorias",
+            placeholder="Ex: Reduzir carga de trabalho, implementar programa de bem-estar, melhorar comunicação...",
+            height=100
+        )
+        
+        # Ações Preventivas
+        st.subheader("🛡️ Ações Preventivas")
+        preventive_actions = st.text_area(
+            "Descreva as ações preventivas a serem implementadas",
+            placeholder="Ex: Treinamento de liderança, programa de saúde mental, política de flexibilidade...",
+            height=100
+        )
+        
+        st.divider()
+        
+        # Botão de salvamento
+        if st.button("✅ Salvar Avaliação", key="save_assessment"):
+            if not client_name:
+                st.error("❌ Nome do cliente é obrigatório!")
+            elif not sector:
+                st.error("❌ Setor é obrigatório!")
+            elif not recommendations:
+                st.error("❌ Recomendações são obrigatórias!")
+            elif not preventive_actions:
+                st.error("❌ Ações preventivas são obrigatórias!")
+            else:
+                # Estruturar fatores
+                factors = {
+                    "Carga de Trabalho": workload,
+                    "Ritmo de Trabalho": work_pace,
+                    "Jornada Excessiva": scheduling,
+                    "Falta de Pausas": work_breaks,
+                    "Controle do Trabalho": work_control,
+                    "Autonomia": autonomy,
+                    "Condições Físicas": physical_conditions,
+                    "Segurança Física": safety,
+                    "Apoio da Equipe": social_support,
+                    "Apoio da Gestão": management_support,
+                    "Comunicação": communication,
+                    "Risco de Violência": workplace_violence,
+                    "Segurança no Emprego": job_security,
+                    "Desenvolvimento Profissional": career_development,
+                    "Reconhecimento": recognition,
+                    "Equidade": fairness
+                }
+                
+                new_assessment = risk_assessments_manager.add_assessment(
+                    client_name=client_name,
+                    sector=sector,
+                    employees_count=int(employees_count),
+                    factors=factors,
+                    recommendations=recommendations,
+                    preventive_actions=preventive_actions
+                )
+                
+                st.success("✅ Avaliação salva com sucesso!")
+                
+                score, level = new_assessment['risk_score'], new_assessment['risk_level']
+                
+                st.metric("Score de Risco", f"{score}/100")
+                st.metric("Nível de Risco", level)
+                
+                st.balloons()
+    
+    with tab2:
+        st.subheader("📋 Histórico de Avaliações")
+        
+        assessments = risk_assessments_manager.get_all_assessments()
+        
+        if assessments:
+            # Métricas
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total", len(assessments))
+            
+            with col2:
+                avg_score = sum(a['risk_score'] for a in assessments) / len(assessments)
+                st.metric("Score Médio", f"{avg_score:.1f}")
+            
+            with col3:
+                max_score = max(a['risk_score'] for a in assessments)
+                st.metric("Score Máximo", f"{max_score:.1f}")
+            
+            with col4:
+                min_score = min(a['risk_score'] for a in assessments)
+                st.metric("Score Mínimo", f"{min_score:.1f}")
+            
+            st.divider()
+            
+            # Tabela
+            df_assessments = pd.DataFrame([
+                {
+                    "ID": a['id'][:8],
+                    "Cliente": a['client_name'],
+                    "Setor": a['sector'],
+                    "Funcionários": a['employees_count'],
+                    "Score": f"{a['risk_score']:.1f}",
+                    "Nível": a['risk_level'],
+                    "Data": a['created_at'][:10]
+                }
+                for a in assessments
+            ])
+            
+            st.dataframe(df_assessments, use_container_width=True, hide_index=True)
+            
+            st.divider()
+            
+            # Filtros
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                search_client = st.text_input("🔍 Buscar cliente")
+            
+            with col2:
+                filter_sector = st.selectbox(
+                    "Filtrar por setor",
+                    ["Todos"] + list(set(a['sector'] for a in assessments))
+                )
+            
+            with col3:
+                filter_level = st.selectbox(
+                    "Filtrar por nível de risco",
+                    ["Todos", "Baixo", "Médio", "Alto", "Muito Alto"]
+                )
+            
+            # Aplicar filtros
+            filtered = assessments
+            
+            if search_client:
+                filtered = [a for a in filtered if search_client.lower() in a['client_name'].lower()]
+            
+            if filter_sector != "Todos":
+                filtered = [a for a in filtered if a['sector'] == filter_sector]
+            
+            if filter_level != "Todos":
+                filtered = [a for a in filtered if a['risk_level'] == filter_level]
+            
+            st.write(f"**{len(filtered)} avaliação(ões)**")
+            
+            for assessment in filtered:
+                risk_class = f"risk-card-{assessment['risk_level'].lower().replace(' ', '_')}"
+                
+                st.markdown(f"""
+                <div class='proposal-card {risk_class}'>
+                    <b>{assessment['client_name']}</b><br>
+                    📁 {assessment['sector']} | 👥 {assessment['employees_count']} funcionários<br>
+                    📊 Score: {assessment['risk_score']:.1f}/100 | 🛡️ Risco: <b>{assessment['risk_level']}</b><br>
+                    📅 {assessment['created_at'][:10]} | 🆔 {assessment['id'][:8]}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Nenhuma avaliação criada ainda")
+    
+    with tab3:
+        st.subheader("👁️ Visualizar Avaliação Completa")
+        
+        assessments = risk_assessments_manager.get_all_assessments()
+        
+        if assessments:
+            assessment_ids = [f"{a['id'][:8]} - {a['client_name']}" for a in assessments]
+            selected_display = st.selectbox("Selecione uma avaliação", assessment_ids)
+            
+            selected_id = selected_display.split(" - ")[0]
+            selected_assessment = None
+            
+            for a in assessments:
+                if a['id'][:8] == selected_id:
+                    selected_assessment = a
+                    break
+            
+            if selected_assessment:
+                # Header
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.write("**Cliente:**")
+                    st.write(selected_assessment['client_name'])
+                
+                with col2:
+                    st.write("**Setor:**")
+                    st.write(selected_assessment['sector'])
+                
+                with col3:
+                    st.write("**Funcionários:**")
+                    st.write(selected_assessment['employees_count'])
+                
+                st.divider()
+                
+                # Score de Risco
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    risk_score = selected_assessment['risk_score']
+                    risk_level = selected_assessment['risk_level']
+                    
+                    st.metric("Score de Risco", f"{risk_score}/100")
+                    st.metric("Nível de Risco", risk_level)
+                
+                with col2:
+                    # Gauge chart
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=risk_score,
+                        domain={'x': [0, 100], 'y': [0, 100]},
+                        title={'text': "Score"},
+                        gauge={
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': "darkblue"},
+                            'steps': [
+                                {'range': [0, 25], 'color': "lightgray"},
+                                {'range': [25, 50], 'color': "gray"},
+                                {'range': [50, 75], 'color': "orange"},
+                                {'range': [75, 100], 'color': "red"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 90
+                            }
+                        }
+                    ))
+                    
+                    fig.update_layout(height=300)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                st.divider()
+                
+                # Fatores
+                st.subheader("📊 Análise dos Fatores")
+                
+                factors = selected_assessment['factors']
+                factors_data = pd.DataFrame([
+                    {
+                        "Fator": key,
+                        "Score (0-10)": value,
+                        "Avaliação": "🔴 Crítico" if value >= 8 else "🟠 Alto" if value >= 6 else "🟡 Médio" if value >= 4 else "🟢 Baixo"
+                    }
+                    for key, value in factors.items()
+                ])
+                
+                st.dataframe(factors_data, use_container_width=True, hide_index=True)
+                
+                st.divider()
+                
+                # Gráfico de fatores
+                fig = px.bar(
+                    factors_data,
+                    x="Fator",
+                    y="Score (0-10)",
+                    title="Distribuição de Scores por Fator",
+                    color="Score (0-10)",
+                    color_continuous_scale="Reds"
+                )
+                
+                fig.update_layout(height=400, xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.divider()
+                
+                # Recomendações
+                st.subheader("💡 Recomendações")
+                st.write(selected_assessment['recommendations'])
+                
+                st.divider()
+                
+                # Ações Preventivas
+                st.subheader("🛡️ Ações Preventivas")
+                st.write(selected_assessment['preventive_actions'])
+                
+                st.divider()
+                
+                # Data
+                st.caption(f"Criada em: {selected_assessment['created_at']}")
+        else:
+            st.info("Nenhuma avaliação criada ainda")
+    
+    with tab4:
+        st.subheader("📊 Relatório Geral de Avaliações")
+        
+        assessments = risk_assessments_manager.get_all_assessments()
+        
+        if assessments:
+            # Resumo geral
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total de Avaliações", len(assessments))
+            
+            with col2:
+                avg_score = sum(a['risk_score'] for a in assessments) / len(assessments)
+                st.metric("Score Médio", f"{avg_score:.1f}")
+            
+            with col3:
+                total_employees = sum(a['employees_count'] for a in assessments)
+                st.metric("Total de Funcionários", total_employees)
+            
+            with col4:
+                risk_levels = {"Baixo": 0, "Médio": 0, "Alto": 0, "Muito Alto": 0}
+                for a in assessments:
+                    risk_levels[a['risk_level']] += 1
+                
+                critical = risk_levels["Alto"] + risk_levels["Muito Alto"]
+                st.metric("Casos Críticos", critical)
+            
+            st.divider()
+            
+            # Gráfico de distribuição
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Distribuição por Nível de Risco**")
+                
+                risk_counts = {"Baixo": 0, "Médio": 0, "Alto": 0, "Muito Alto": 0}
+                for a in assessments:
+                    risk_counts[a['risk_level']] += 1
+                
+                fig_risk = go.Figure(data=[
+                    go.Pie(labels=list(risk_counts.keys()), values=list(risk_counts.values()))
+                ])
+                
+                st.plotly_chart(fig_risk, use_container_width=True)
+            
+            with col2:
+                st.write("**Scores de Risco**")
+                
+                scores_data = pd.DataFrame([
+                    {"Cliente": a['client_name'], "Score": a['risk_score']}
+                    for a in assessments
+                ])
+                
+                fig_scores = px.bar(
+                    scores_data,
+                    x="Cliente",
+                    y="Score",
+                    title="Scores por Cliente",
+                    color="Score",
+                    color_continuous_scale="Reds"
+                )
+                
+                fig_scores.update_layout(height=300)
+                st.plotly_chart(fig_scores, use_container_width=True)
+            
+            st.divider()
+            
+            # Exportar dados
+            st.write("**📥 Exportar Relatório**")
+            
+            export_df = pd.DataFrame([
+                {
+                    "Cliente": a['client_name'],
+                    "Setor": a['sector'],
+                    "Funcionários": a['employees_count'],
+                    "Score": f"{a['risk_score']:.1f}",
+                    "Nível": a['risk_level'],
+                    "Data": a['created_at'][:10]
+                }
+                for a in assessments
+            ])
+            
+            csv = export_df.to_csv(index=False)
+            
+            st.download_button(
+                label="📥 Baixar CSV",
+                data=csv,
+                file_name="avaliacoes_risco_nr01.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("Nenhuma avaliação criada ainda")
 
 # ===== RELATÓRIOS =====
 elif selected == "Relatórios":
-    st.markdown("<h1 class='header-title'>📊 Relatórios</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='header-title'>📊 Relatórios Gerais</h1>", unsafe_allow_html=True)
     
     services = load_services()
     proposals = proposals_manager.get_all_proposals()
+    assessments = risk_assessments_manager.get_all_assessments()
     
-    st.subheader("📈 Resumo Geral")
+    st.subheader("📈 Resumo Geral da Plataforma")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.metric("Total de Serviços", len(services))
+        st.metric("Serviços", len(services))
     
     with col2:
-        if services:
-            st.metric("Preço Médio", f"R\$ {sum(float(s['price']) for s in services)/len(services):,.2f}")
+        st.metric("Propostas", len(proposals))
     
     with col3:
-        st.metric("Total de Propostas", len(proposals))
+        if proposals:
+            approved = len([p for p in proposals if p['status'] == 'approved'])
+            st.metric("Aprovadas", approved)
+    
+    with col4:
+        st.metric("Avaliações", len(assessments))
+    
+    with col5:
+        if proposals:
+            total_value = sum(p['final_total'] for p in proposals)
+            st.metric("Faturamento", f"R\$ {total_value/1000:.0f}k")
 
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666; font-size: 12px; padding: 20px;'>
-    <p>🔷 Black Belt Platform v1.2.0 | © 2025</p>
 </div>
 """, unsafe_allow_html=True)
