@@ -264,11 +264,24 @@ docker-compose up -d
 - Auditoria completa de operações
 - Conformidade LGPD
 
+## ⚠️ Notas Importantes
+
+### Sistema PGR Original (HTML/JS)
+
+O sistema PGR original (`index.html`, `app.js`, `style.css`) está incluído mas o arquivo JavaScript (`app.js`) está incompleto. Ele contém apenas stubs de funções. Para usar o sistema PGR original completamente funcional, será necessário:
+
+1. Implementar o objeto `unidadeWorkManager`
+2. Implementar a função `inicializarNavegacaoSeletorUnidade()`
+3. Adicionar toda a lógica de negócio faltante
+
+**Alternativa**: Use a nova **Plataforma Black Belt** (Backend + Streamlit) que oferece funcionalidades similares e mais avançadas, totalmente implementada.
+
 ## 🛣️ Roadmap
 
 - [x] Estrutura básica do backend
 - [x] Sistema de precificação
 - [x] Interface Streamlit
+- [ ] Completar sistema PGR original (JavaScript)
 - [ ] Integração completa com banco de dados
 - [ ] Sistema de autenticação OAuth 2.0
 - [ ] Geração de PDF para propostas
