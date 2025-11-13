@@ -1,0 +1,54 @@
+﻿version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: blackbelt-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: blackbelt
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: blackbelt-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://root:root@db:3306/blackbelt
+      PORT: 3000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./streamlit
+    container_name: blackbelt-frontend
+    depends_on:
+      - backend
+    environment:
+      API_URL: http://localhost:3000/trpc
+      TENANT_ID: default-tenant
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./streamlit:/app
+
+volumes:
+  mysql_data:
+
+networks:
+  default:
+    name: blackbelt-network
