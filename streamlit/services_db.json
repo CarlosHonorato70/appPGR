@@ -1,0 +1,22 @@
+﻿{
+  "services": [
+    {"id": "srv-001", "name": "Questionário Individual", "price": 125.00, "hours": 0.5, "category": "Serviços Individuais"},
+    {"id": "srv-002", "name": "Entrevista Individual", "price": 337.50, "hours": 1.0, "category": "Serviços Individuais"},
+    {"id": "srv-003", "name": "Avaliação Completa Individual", "price": 510.00, "hours": 1.5, "category": "Serviços Individuais"},
+    {"id": "srv-004", "name": "Avaliação 10 Pessoas + Relatório", "price": 2500.00, "hours": 20.0, "category": "Avaliações Organizacionais"},
+    {"id": "srv-005", "name": "Avaliação Micro/Pequena Empresa", "price": 3750.00, "hours": 30.0, "category": "Avaliações Organizacionais"},
+    {"id": "srv-006", "name": "Pacote Essencial NR-01", "price": 12800.00, "hours": 80.0, "category": "Pacotes Principais"},
+    {"id": "srv-007", "name": "Pacote Avançado NR-01", "price": 22900.00, "hours": 140.0, "category": "Pacotes Principais"},
+    {"id": "srv-008", "name": "Pacote Elite NR-01", "price": 34900.00, "hours": 220.0, "category": "Pacotes Principais"},
+    {"id": "srv-009", "name": "Acompanhamento Mensal Basic", "price": 1900.00, "hours": 12.0, "category": "Acompanhamento Mensal"},
+    {"id": "srv-010", "name": "Acompanhamento Mensal Standard", "price": 3400.00, "hours": 24.0, "category": "Acompanhamento Mensal"},
+    {"id": "srv-011", "name": "Acompanhamento Mensal Executive", "price": 5900.00, "hours": 40.0, "category": "Acompanhamento Mensal"},
+    {"id": "srv-012", "name": "Plano de Ação Customizado", "price": 1750.00, "hours": 14.0, "category": "Complementos"},
+    {"id": "srv-013", "name": "Workshop NR-01 (4 horas)", "price": 2000.00, "hours": 4.0, "category": "Complementos"},
+    {"id": "srv-014", "name": "Consultoria Mensal Contínua", "price": 2750.00, "hours": 20.0, "category": "Complementos"},
+    {"id": "srv-015", "name": "Palestra Presencial", "price": 1150.00, "hours": 2.0, "category": "Complementos"},
+    {"id": "srv-016", "name": "Palestra Online", "price": 700.00, "hours": 2.0, "category": "Complementos"},
+    {"id": "srv-017", "name": "Treinamento de Gestores", "price": 1900.00, "hours": 8.0, "category": "Complementos"},
+    {"id": "srv-018", "name": "Simulado Incidente Crítico", "price": 3000.00, "hours": 24.0, "category": "Complementos"}
+  ]
+}
