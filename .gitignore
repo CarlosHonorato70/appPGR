@@ -1,17 +1,7 @@
-﻿# Credenciais e configs locais
-.env
+﻿.env
 *.env
-.env.*
-
-# Bancos/arquivos locais do app
 *_db.json
 *.sqlite
-
-# Cache/artefatos
 __pycache__/
 *.log
-*.py[cod]
-*.DS_Store
-
-# Streamlit cache
 .streamlit/
