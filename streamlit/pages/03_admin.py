@@ -66,17 +66,17 @@ with tab1:
             st.metric("Total", len(services))
         
         with col2:
-            preços = [s['price'] for s in services]
-            st.metric("Mínimo", f"R\$ {min(preços):,.0f}")
+            preços = [float(s['price']) for s in services]
+            st.metric("Mínimo", f"R\$ {min(preços):,.2f}")
         
         with col3:
-            st.metric("Máximo", f"R\$ {max(preços):,.0f}")
+            st.metric("Máximo", f"R\$ {max(preços):,.2f}")
         
         with col4:
-            st.metric("Médio", f"R\$ {sum(preços)/len(preços):,.0f}")
+            st.metric("Médio", f"R\$ {sum(preços)/len(preços):,.2f}")
         
         with col5:
-            st.metric("Valor Total", f"R\$ {sum(preços):,.0f}")
+            st.metric("Valor Total", f"R\$ {sum(preços):,.2f}")
         
         st.divider()
         
@@ -87,8 +87,8 @@ with tab1:
             {
                 "ID": s['id'],
                 "Nome": s['name'],
-                "Preço": f"R\$ {s['price']:,.2f}",
-                "Horas": f"{s['hours']}h",
+                "Preço": f"R\$ {float(s['price']):,.2f}",
+                "Horas": f"{float(s['hours'])}h",
                 "Categoria": s['category']
             }
             for s in services
@@ -106,7 +106,7 @@ with tab1:
         
         for idx, category in enumerate(categories):
             cat_services = manager.get_services_by_category(category)
-            cat_total = sum(s['price'] for s in cat_services)
+            cat_total = sum(float(s['price']) for s in cat_services)
             
             with cols[idx]:
                 st.metric(
@@ -163,20 +163,21 @@ with tab2:
                 
                 with col1:
                     st.write("**Valores Atuais:**")
-                    st.metric("Preço", f"R\$ {service['price']:,.2f}")
-                    st.metric("Horas", f"{service['hours']}h")
+                    st.metric("Preço", f"R\$ {float(service['price']):,.2f}")
+                    st.metric("Horas", f"{float(service['hours'])}h")
                 
                 with col2:
                     st.write("**Novos Valores:**")
+                    # CORRIGIDO: Converter para float
                     new_price = st.number_input(
                         "Preço (R\$)",
-                        value=service['price'],
+                        value=float(service['price']),
                         step=50.0,
                         min_value=0.0
                     )
                     new_hours = st.number_input(
                         "Horas",
-                        value=service['hours'],
+                        value=float(service['hours']),
                         step=0.5,
                         min_value=0.5
                     )
@@ -190,8 +191,8 @@ with tab2:
                     if st.button("💾 Salvar Alterações", key="save_edit", use_container_width=True):
                         manager.update_service(
                             service['id'],
-                            price=new_price,
-                            hours=new_hours
+                            price=float(new_price),
+                            hours=float(new_hours)
                         )
                         st.success(f"✅ '{service['name']}' atualizado!")
                         st.balloons()
@@ -247,8 +248,8 @@ with tab3:
             else:
                 new_service = manager.add_service(
                     name=name,
-                    price=price,
-                    hours=hours,
+                    price=float(price),
+                    hours=float(hours),
                     category=category,
                     description=description
                 )
@@ -278,7 +279,7 @@ with tab4:
             st.markdown(f"""
             <div class='service-card'>
                 <b>{service['name']}</b><br>
-                💰 R\$ {service['price']:,.2f} | ⏱️ {service['hours']}h<br>
+                💰 R\$ {float(service['price']):,.2f} | ⏱️ {float(service['hours'])}h<br>
                 📁 {service['category']}
             </div>
             """, unsafe_allow_html=True)
@@ -318,8 +319,8 @@ with tab5:
                 {
                     "ID": s['id'],
                     "Nome": s['name'],
-                    "Preço": s['price'],
-                    "Horas": s['hours'],
+                    "Preço": float(s['price']),
+                    "Horas": float(s['hours']),
                     "Categoria": s['category']
                 }
                 for s in services
@@ -337,7 +338,7 @@ with tab5:
         with col2:
             st.write("**📊 Resumo Geral**")
             
-            preços = [s['price'] for s in services]
+            preços = [float(s['price']) for s in services]
             
             st.write(f"""
             - **Total de Serviços:** {len(services)}
@@ -359,7 +360,7 @@ with tab5:
             cat_services = manager.get_services_by_category(cat)
             chart_data.append({
                 "Categoria": cat,
-                "Total": sum(s['price'] for s in cat_services),
+                "Total": sum(float(s['price']) for s in cat_services),
                 "Qtd": len(cat_services)
             })
         
