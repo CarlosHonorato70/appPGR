@@ -1,0 +1,166 @@
+﻿{
+  "services": [
+    {
+      "id": "srv-001",
+      "name": "Questionário Individual",
+      "description": "Questionário de avaliação de riscos psicossociais por pessoa",
+      "category": "Serviços Individuais",
+      "basePrice": 125.00,
+      "estimatedHours": 0.5,
+      "unit": "pessoa"
+    },
+    {
+      "id": "srv-002",
+      "name": "Entrevista Individual",
+      "description": "Entrevista aprofundada de avaliação de riscos",
+      "category": "Serviços Individuais",
+      "basePrice": 337.50,
+      "estimatedHours": 1.0,
+      "unit": "pessoa"
+    },
+    {
+      "id": "srv-003",
+      "name": "Avaliação Completa Individual",
+      "description": "Avaliação completa incluindo questionário + entrevista",
+      "category": "Serviços Individuais",
+      "basePrice": 510.00,
+      "estimatedHours": 1.5,
+      "unit": "pessoa"
+    },
+    {
+      "id": "srv-004",
+      "name": "Avaliação 10 Pessoas + Relatório",
+      "description": "Avaliação organizacional para 10 pessoas com relatório executivo",
+      "category": "Avaliações Organizacionais",
+      "basePrice": 2500.00,
+      "estimatedHours": 20.0,
+      "unit": "grupo"
+    },
+    {
+      "id": "srv-005",
+      "name": "Avaliação Micro/Pequena Empresa",
+      "description": "Avaliação completa para empresa com até 50 funcionários",
+      "category": "Avaliações Organizacionais",
+      "basePrice": 3750.00,
+      "estimatedHours": 30.0,
+      "unit": "empresa"
+    },
+    {
+      "id": "srv-006",
+      "name": "Pacote Essencial NR-01",
+      "description": "Pacote completo com avaliação inicial, análise e recomendações - 4-6 semanas",
+      "category": "Pacotes Principais",
+      "basePrice": 12800.00,
+      "estimatedHours": 80.0,
+      "unit": "projeto"
+    },
+    {
+      "id": "srv-007",
+      "name": "Pacote Avançado NR-01",
+      "description": "Pacote com diagnóstico profundo, plano de ação e acompanhamento inicial - 6-8 semanas",
+      "category": "Pacotes Principais",
+      "basePrice": 22900.00,
+      "estimatedHours": 140.0,
+      "unit": "projeto"
+    },
+    {
+      "id": "srv-008",
+      "name": "Pacote Elite NR-01",
+      "description": "Pacote premium com implementação completa, treinamento e gestão contínua - 8-12 semanas",
+      "category": "Pacotes Principais",
+      "basePrice": 34900.00,
+      "estimatedHours": 220.0,
+      "unit": "projeto"
+    },
+    {
+      "id": "srv-009",
+      "name": "Acompanhamento Mensal Basic",
+      "description": "Acompanhamento mensal básico - suporte para implementação",
+      "category": "Acompanhamento Mensal",
+      "basePrice": 1900.00,
+      "estimatedHours": 12.0,
+      "unit": "mês"
+    },
+    {
+      "id": "srv-010",
+      "name": "Acompanhamento Mensal Standard",
+      "description": "Acompanhamento mensal padrão - consultoria completa (10% desconto anual: R$ 3.060)",
+      "category": "Acompanhamento Mensal",
+      "basePrice": 3400.00,
+      "estimatedHours": 24.0,
+      "unit": "mês"
+    },
+    {
+      "id": "srv-011",
+      "name": "Acompanhamento Mensal Executive",
+      "description": "Acompanhamento mensal executive - suporte premium (10% desconto anual: R$ 5.310)",
+      "category": "Acompanhamento Mensal",
+      "basePrice": 5900.00,
+      "estimatedHours": 40.0,
+      "unit": "mês"
+    },
+    {
+      "id": "srv-012",
+      "name": "Plano de Ação Customizado",
+      "description": "Elaboração de plano de ação personalizado",
+      "category": "Complementos",
+      "basePrice": 1750.00,
+      "estimatedHours": 14.0,
+      "unit": "projeto"
+    },
+    {
+      "id": "srv-013",
+      "name": "Workshop NR-01 (4 horas)",
+      "description": "Workshop de sensibilização e treinamento sobre NR-01",
+      "category": "Complementos",
+      "basePrice": 2000.00,
+      "estimatedHours": 4.0,
+      "unit": "sessão"
+    },
+    {
+      "id": "srv-014",
+      "name": "Consultoria Mensal Contínua",
+      "description": "Consultoria contínua para implementação de ações",
+      "category": "Complementos",
+      "basePrice": 2750.00,
+      "estimatedHours": 20.0,
+      "unit": "mês"
+    },
+    {
+      "id": "srv-015",
+      "name": "Palestra Presencial",
+      "description": "Palestra presencial sobre riscos psicossociais",
+      "category": "Complementos",
+      "basePrice": 1150.00,
+      "estimatedHours": 2.0,
+      "unit": "sessão"
+    },
+    {
+      "id": "srv-016",
+      "name": "Palestra Online",
+      "description": "Palestra online sobre riscos psicossociais",
+      "category": "Complementos",
+      "basePrice": 700.00,
+      "estimatedHours": 2.0,
+      "unit": "sessão"
+    },
+    {
+      "id": "srv-017",
+      "name": "Treinamento de Gestores",
+      "description": "Treinamento especializado para gestores sobre NR-01",
+      "category": "Complementos",
+      "basePrice": 1900.00,
+      "estimatedHours": 8.0,
+      "unit": "sessão"
+    },
+    {
+      "id": "srv-018",
+      "name": "Simulado Incidente Crítico",
+      "description": "Simulação de gerenciamento de incidente psicossocial crítico",
+      "category": "Complementos",
+      "basePrice": 3000.00,
+      "estimatedHours": 24.0,
+      "unit": "projeto"
+    }
+  ]
+}
