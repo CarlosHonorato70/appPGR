@@ -1,6 +1,7 @@
 ﻿import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import sys
 import os
 
@@ -8,153 +9,149 @@ sys.path.insert(0, 'utils')
 from copsoq_invites_manager import copsoq_invites_manager
 from copsoq_responses_manager import copsoq_responses_manager, DIMENSION_MAP
 
-st.set_page_config(page_title='Dashboard COPSOQ-II Avançado', page_icon='📈', layout='wide')
+st.set_page_config(page_title='Dashboard COPSOQ-II', page_icon='📈', layout='wide')
 st.markdown('<h2>📈 Dashboard COPSOQ-II Avançado</h2>', unsafe_allow_html=True)
 
-# --- Carregar Dados ---
+# Carregar dados
 all_invites = copsoq_invites_manager.get_all_invites()
 all_responses = copsoq_responses_manager.get_all_responses()
+
+if not all_responses:
+    st.info('Nenhuma resposta recebida ainda. Dispare convites para começar.')
+    st.stop()
 
 df_invites = pd.DataFrame(all_invites)
 df_responses = pd.DataFrame(all_responses)
 
-# --- Filtros ---
-st.sidebar.header('Filtros')
-assessment_ids = ['Todos'] + sorted(df_invites['assessment_id'].unique().tolist())
-selected_assessment = st.sidebar.selectbox('Selecionar Avaliação', assessment_ids)
+# Filtros
+st.sidebar.header('🔍 Filtros')
+assessment_ids = ['Todos'] + sorted(df_invites['assessment_id'].unique().tolist()) if not df_invites.empty else ['Todos']
+selected_assessment = st.sidebar.selectbox('Avaliação', assessment_ids)
 
 if selected_assessment != 'Todos':
-    df_filtered_invites = df_invites[df_invites['assessment_id'] == selected_assessment]
-    df_filtered_responses = df_responses[df_responses['assessment_id'] == selected_assessment]
+    df_filt_invites = df_invites[df_invites['assessment_id'] == selected_assessment]
+    df_filt_responses = df_responses[df_responses['assessment_id'] == selected_assessment]
 else:
-    df_filtered_invites = df_invites
-    df_filtered_responses = df_responses
+    df_filt_invites = df_invites
+    df_filt_responses = df_responses
 
-departments = ['Todos'] + sorted(df_filtered_invites['department'].unique().tolist())
-selected_department = st.sidebar.selectbox('Selecionar Departamento', departments)
+departments = ['Todos'] + sorted(df_filt_invites['department'].unique().tolist()) if not df_filt_invites.empty else ['Todos']
+selected_dept = st.sidebar.selectbox('Departamento', departments)
 
-if selected_department != 'Todos':
-    df_filtered_invites = df_filtered_invites[df_filtered_invites['department'] == selected_department]
-    df_filtered_responses = df_filtered_responses[df_filtered_responses['department'] == selected_department]
+if selected_dept != 'Todos':
+    df_filt_invites = df_filt_invites[df_filt_invites['department'] == selected_dept]
+    df_filt_responses = df_filt_responses[df_filt_responses['department'] == selected_dept]
 
-# --- Métricas de Resposta ---
-st.subheader('Métricas de Resposta')
-total_invites = len(df_filtered_invites)
-total_sent = len(df_filtered_invites[df_filtered_invites['sent']])
-total_opened = len(df_filtered_invites[df_filtered_invites['opened']])
-total_completed = len(df_filtered_invites[df_filtered_invites['completed']])
+# Tabs
+tab1, tab2, tab3, tab4, tab5 = st.tabs(['📊 Visão Geral', '🏢 Por Departamento', '📈 Dimensões', '🚨 Alertas', '💾 Exportar'])
 
-response_rate = (total_completed / total_sent * 100) if total_sent > 0 else 0
-
-col1, col2, col3, col4, col5 = st.columns(5)
-with col1: st.metric('Convites Criados', total_invites)
-with col2: st.metric('Enviados', total_sent)
-with col3: st.metric('Abertos', total_opened)
-with col4: st.metric('Concluídos', total_completed)
-with col5: st.metric('Taxa de Resposta', f'{response_rate:.1f}%')
-
-# --- Alertas de Resposta ---
-if response_rate < 50 and total_sent > 0:
-    st.warning(f'🚨 Alerta: A taxa de resposta ({response_rate:.1f}%) está abaixo do ideal (50%). Considere enviar lembretes.')
-elif response_rate >= 50 and response_rate < 75 and total_sent > 0:
-    st.info(f'💡 Dica: A taxa de resposta ({response_rate:.1f}%) é boa, mas pode ser melhorada. Um lembrete final pode ajudar.')
-elif response_rate >= 75 and total_sent > 0:
-    st.success(f'🎉 Excelente! A taxa de resposta ({response_rate:.1f}%) é muito alta.')
-
-st.divider()
-
-# --- Análise por Departamento (Taxa de Resposta) ---
-st.subheader('Taxa de Resposta por Departamento')
-if not df_filtered_invites.empty:
-    dept_invites = df_filtered_invites.groupby('department').size().reset_index(name='Total Convites')
-    dept_completed = df_filtered_invites[df_filtered_invites['completed']].groupby('department').size().reset_index(name='Total Concluídos')
+with tab1:
+    st.subheader('Métricas Gerais')
+    total_invites = len(df_filt_invites)
+    total_sent = len(df_filt_invites[df_filt_invites['sent'] == True]) if not df_filt_invites.empty else 0
+    total_completed = len(df_filt_responses)
+    overall_avg = df_filt_responses['overall_score'].mean() if not df_filt_responses.empty else 0
+    response_rate = (total_completed / total_sent * 100) if total_sent > 0 else 0
     
-    df_dept_summary = pd.merge(dept_invites, dept_completed, on='department', how='left').fillna(0)
-    df_dept_summary['Taxa de Resposta (%)'] = (df_dept_summary['Total Concluídos'] / df_dept_summary['Total Convites'] * 100).round(1)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric('Convites Criados', total_invites)
+    col2.metric('Enviados', total_sent)
+    col3.metric('Respondidos', total_completed)
+    col4.metric('Taxa (%)', f'{response_rate:.1f}%')
+    col5.metric('Score Médio', f'{overall_avg:.2f}')
     
-    st.dataframe(df_dept_summary, use_container_width=True, hide_index=True)
-    
-    fig_dept_rate = px.bar(df_dept_summary, x='department', y='Taxa de Resposta (%)', 
-                           title='Taxa de Resposta por Departamento',
-                           labels={'department': 'Departamento', 'Taxa de Resposta (%)': 'Taxa de Resposta (%)'},
-                           color='Taxa de Resposta (%)',
-                           color_continuous_scale=px.colors.sequential.RdYlGn)
-    st.plotly_chart(fig_dept_rate, use_container_width=True)
-else:
-    st.info('Nenhum convite para analisar por departamento.')
+    if response_rate < 50 and total_sent > 0:
+        st.error(f'🔴 Taxa de resposta ({response_rate:.1f}%) abaixo de 50%. Considere enviar lembretes.')
+    elif response_rate >= 75:
+        st.success(f'🟢 Excelente! Taxa de resposta ({response_rate:.1f}%).')
 
-st.divider()
-
-# --- Análise de Dimensões COPSOQ-II ---
-st.subheader('Scores Médios por Dimensão COPSOQ-II')
-
-if not df_filtered_responses.empty:
-    # Preparar dados para o gráfico de dimensões
-    df_dim_scores = pd.DataFrame([
-        {'department': r['department'], 'dimension': dim, 'score': score}
-        for r in df_filtered_responses
-        for dim, score in r['dimension_scores'].items()
-    ])
-
-    if not df_dim_scores.empty:
-        # Score médio geral por dimensão
-        avg_dim_scores = df_dim_scores.groupby('dimension')['score'].mean().reset_index()
-        avg_dim_scores = avg_dim_scores.sort_values('score', ascending=False)
-
-        fig_overall_dims = px.bar(avg_dim_scores, x='dimension', y='score', 
-                                  title='Scores Médios por Dimensão (Geral)',
-                                  labels={'dimension': 'Dimensão', 'score': 'Score Médio (0-4)'},
-                                  color='score',
-                                  color_continuous_scale=px.colors.sequential.Plasma)
-        st.plotly_chart(fig_overall_dims, use_container_width=True)
-
-        st.write('**Scores Detalhados por Dimensão:**')
-        st.dataframe(avg_dim_scores.set_index('dimension'), use_container_width=True)
-
-        # --- Alertas e Recomendações por Dimensão ---
-        st.subheader('🚨 Alertas e Recomendações por Dimensão')
-        recommendations = []
-        for index, row in avg_dim_scores.iterrows():
-            dim = row['dimension']
-            score = row['score']
-
-            if dim in ["Demandas Quantitativas", "Demandas Emotivas", "Demandas Cognitivas"]:
-                if score >= 3.0:
-                    recommendations.append(f"🔴 **{dim} (Score: {score:.2f})**: Nível de demanda muito alto. Avaliar carga de trabalho, prazos e recursos. Risco de estresse e burnout.")
-                elif score >= 2.5:
-                    recommendations.append(f"🟠 **{dim} (Score: {score:.2f})**: Nível de demanda elevado. Monitorar e buscar otimizações para evitar sobrecarga.")
-            
-            elif dim in ["Influência", "Desenvolvimento", "Variedade", "Suporte do Gestor", "Suporte dos Colegas", "Justiça Organizacional", "Qualidade da Liderança", "Significado", "Compromisso"]:
-                if score <= 1.5:
-                    recommendations.append(f"🔴 **{dim} (Score: {score:.2f})**: Nível muito baixo. Urgente fortalecer este aspecto (autonomia, aprendizado, apoio, justiça, liderança).")
-                elif score <= 2.0:
-                    recommendations.append(f"🟠 **{dim} (Score: {score:.2f})**: Nível baixo. Há espaço significativo para melhoria. Focar em ações de engajamento e desenvolvimento.")
-            
-            elif dim in ["Segurança do Emprego", "Bem-estar (Burnout)"]:
-                if score >= 2.5:
-                    recommendations.append(f"🔴 **{dim} (Score: {score:.2f})**: Nível preocupante. Indícios de insegurança ou esgotamento. Investigar causas e oferecer suporte.")
-                elif score >= 2.0:
-                    recommendations.append(f"🟠 **{dim} (Score: {score:.2f})**: Nível moderado. Monitorar de perto e implementar ações preventivas.")
+with tab2:
+    st.subheader('Análise por Departamento')
+    if not df_filt_invites.empty and selected_dept == 'Todos':
+        dept_summary = df_filt_invites.groupby('department').agg(
+            total_convites=('id', 'count'),
+            enviados=('sent', 'sum')
+        ).reset_index()
         
-        if recommendations:
-            for rec in recommendations:
-                st.markdown(rec)
+        dept_respondidos = df_filt_responses.groupby('department').size().reset_index(name='respondidos')
+        dept_summary = pd.merge(dept_summary, dept_respondidos, on='department', how='left').fillna(0)
+        dept_summary['respondidos'] = dept_summary['respondidos'].astype(int)
+        dept_summary['taxa_resposta'] = (dept_summary['respondidos'] / dept_summary['enviados'] * 100).round(1)
+        
+        fig = px.bar(dept_summary, x='department', y='taxa_resposta', title='Taxa de Resposta por Departamento', 
+                    color='taxa_resposta', color_continuous_scale='RdYlGn', range_color=[0, 100])
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.dataframe(dept_summary, use_container_width=True, hide_index=True)
+
+with tab3:
+    st.subheader('Scores Médios das Dimensões')
+    if not df_filt_responses.empty:
+        # Calcular médias por dimensão
+        dim_scores = {}
+        for dim in DIMENSION_MAP.keys():
+            scores = []
+            for _, resp in df_filt_responses.iterrows():
+                if dim in resp['dimension_scores']:
+                    scores.append(resp['dimension_scores'][dim])
+            dim_scores[dim] = sum(scores) / len(scores) if scores else 0
+        
+        df_dims = pd.DataFrame(list(dim_scores.items()), columns=['Dimensão', 'Score']).sort_values('Score')
+        
+        # Gráfico de barras
+        fig = px.bar(df_dims, x='Score', y='Dimensão', orientation='h', 
+                    title='Scores por Dimensão (0-4)', color='Score',
+                    color_continuous_scale=px.colors.sequential.RdYlGn, range_color=[0, 4])
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Gráfico de radar
+        fig_radar = go.Figure(data=go.Scatterpolar(
+            r=df_dims['Score'],
+            theta=df_dims['Dimensão'],
+            fill='toself',
+            line_color='blue'
+        ))
+        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 4])), title='Visão de Radar das Dimensões')
+        st.plotly_chart(fig_radar, use_container_width=True)
+        
+        st.dataframe(df_dims.set_index('Dimensão'), use_container_width=True)
+
+with tab4:
+    st.subheader('🚨 Alertas Inteligentes')
+    if not df_filt_responses.empty:
+        dim_scores = {}
+        for dim in DIMENSION_MAP.keys():
+            scores = [resp['dimension_scores'].get(dim, 0) for _, resp in df_filt_responses.iterrows()]
+            dim_scores[dim] = sum(scores) / len(scores) if scores else 0
+        
+        alertas = []
+        for dim, score in dim_scores.items():
+            if dim in ['Demandas Quantitativas', 'Demandas Emotivas', 'Demandas Cognitivas']:
+                if score >= 3.5:
+                    alertas.append(('🔴 Alto', f'{dim}: Score {score:.2f} - Nível de demanda crítico'))
+                elif score >= 2.5:
+                    alertas.append(('🟠 Moderado', f'{dim}: Score {score:.2f} - Demanda elevada'))
+            else:
+                if score < 1.5:
+                    alertas.append(('🔴 Alto', f'{dim}: Score {score:.2f} - Nível crítico, requer ação'))
+                elif score < 2.0:
+                    alertas.append(('🟠 Moderado', f'{dim}: Score {score:.2f} - Nível baixo, atenção necessária'))
+        
+        if alertas:
+            for nivel, msg in alertas:
+                if '🔴' in nivel:
+                    st.error(msg)
+                else:
+                    st.warning(msg)
         else:
-            st.info('Nenhum alerta ou recomendação crítica com base nos scores atuais.')
+            st.success('✅ Nenhum alerta crítico. Todos os scores estão dentro de níveis saudáveis.')
 
-        # --- Scores por Dimensão e Departamento ---
-        if selected_department == 'Todos' and len(df_dim_scores['department'].unique()) > 1:
-            st.subheader('Scores Médios por Dimensão e Departamento')
-            avg_dim_dept_scores = df_dim_scores.groupby(['department', 'dimension'])['score'].mean().reset_index()
-            
-            fig_dept_dims = px.bar(avg_dim_dept_scores, x='dimension', y='score', color='department', 
-                                   barmode='group',
-                                   title='Scores Médios por Dimensão e Departamento',
-                                   labels={'dimension': 'Dimensão', 'score': 'Score Médio (0-4)', 'department': 'Departamento'},
-                                   height=500)
-            st.plotly_chart(fig_dept_dims, use_container_width=True)
-    else:
-        st.info('Nenhum dado de score de dimensão para exibir.')
-else:
-    st.info('Nenhuma resposta recebida para a avaliação/departamento selecionado.')
-
+with tab5:
+    st.subheader('💾 Exportar Dados')
+    
+    csv_responses = df_filt_responses.to_csv(index=False).encode('utf-8')
+    st.download_button('📥 Baixar Respostas (CSV)', csv_responses, 'copsoq_respostas.csv', 'text/csv', use_container_width=True)
+    
+    if not df_filt_invites.empty and selected_dept == 'Todos':
+        csv_dept = dept_summary.to_csv(index=False).encode('utf-8')
+        st.download_button('📥 Baixar Sumário Departamentos (CSV)', csv_dept, 'copsoq_departamentos.csv', 'text/csv', use_container_width=True)
