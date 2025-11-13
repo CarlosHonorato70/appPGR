@@ -50,3 +50,32 @@ tmp/
 
 # Local development server
 .cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+.eggs/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Backend build
+backend/dist/
+backend/node_modules/
+backend/.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

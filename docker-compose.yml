@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: blackbelt-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: blackbelt
+      MYSQL_USER: blackbelt_user
+      MYSQL_PASSWORD: blackbelt_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - blackbelt-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: blackbelt-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://blackbelt_user:blackbelt_pass@mysql:3306/blackbelt
+      PORT: 3000
+      NODE_ENV: production
+      CORS_ORIGIN: http://localhost:8501
+    depends_on:
+      - mysql
+    networks:
+      - blackbelt-network
+
+  # Streamlit Frontend
+  streamlit:
+    build:
+      context: ./streamlit
+      dockerfile: Dockerfile
+    container_name: blackbelt-streamlit
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://backend:3000/trpc
+    depends_on:
+      - backend
+    networks:
+      - blackbelt-network
+
+volumes:
+  mysql_data:
+
+networks:
+  blackbelt-network:
+    driver: bridge
