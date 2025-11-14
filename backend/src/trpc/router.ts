@@ -10,8 +10,10 @@ export const publicProcedure = t.procedure;
 import { pricingRouter } from './routers/pricing';
 import { proposalsRouter } from './routers/proposals';
 import { riskAssessmentsRouter } from './routers/risk-assessments';
+import { authRouter } from './routers/auth';
 
 export const appRouter = router({
+  auth: authRouter,
   pricing: pricingRouter,
   proposals: proposalsRouter,
   riskAssessments: riskAssessmentsRouter
