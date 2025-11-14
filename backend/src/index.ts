@@ -10,6 +10,8 @@ import { log } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimiter';
 import { testConnection } from './database/connection';
+import { register, metricsMiddleware } from './monitoring/metrics';
+import { openApiDocument, getSwaggerHTML } from './docs/openapi';
 
 dotenv.config({ path: '.env.local' });
 
@@ -29,6 +31,9 @@ app.use(cors({
 
 // Body parser
 app.use(express.json());
+
+// Metrics middleware
+app.use(metricsMiddleware);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -60,13 +65,38 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    const metrics = await register.metrics();
+    res.end(metrics);
+  } catch (error) {
+    log.error('Error fetching metrics:', error);
+    res.status(500).end('Error fetching metrics');
+  }
+});
+
+// OpenAPI documentation
+app.get('/api-docs', (req, res) => {
+  res.send(getSwaggerHTML());
+});
+
+// OpenAPI JSON
+app.get('/api-docs.json', (req, res) => {
+  res.json(openApiDocument);
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
     name: 'Black Belt Integrated Platform API',
-    version: '1.1.0',
+    version: '1.2.0',
     endpoints: {
       health: '/health',
+      metrics: '/metrics',
+      apiDocs: '/api-docs',
+      apiDocsJson: '/api-docs.json',
       trpc: '/trpc'
     }
   });
