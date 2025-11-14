@@ -1,12 +1,14 @@
 // backend/src/index.ts
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './trpc/router';
 import dotenv from 'dotenv';
 import { env } from './config/env';
 import { log } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
+import { apiLimiter } from './middleware/rateLimiter';
 import { testConnection } from './database/connection';
 
 dotenv.config({ path: '.env.local' });
@@ -14,11 +16,18 @@ dotenv.config({ path: '.env.local' });
 const app = express();
 const PORT = env.PORT || 3000;
 
-// Middlewares
+// Security middlewares
+app.use(helmet({
+  contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false
+}));
+
+// CORS
 app.use(cors({
   origin: env.CORS_ORIGIN.split(','),
   credentials: true
 }));
+
+// Body parser
 app.use(express.json());
 
 // Request logging middleware
@@ -27,9 +36,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// tRPC route
+// tRPC route with rate limiting
 app.use(
   '/trpc',
+  apiLimiter,
   createExpressMiddleware({
     router: appRouter,
     createContext: async ({ req }) => ({
