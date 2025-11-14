@@ -16,6 +16,7 @@ import { relations } from 'drizzle-orm';
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
   email: varchar('email', { length: 255 }).unique().notNull(),
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: mysqlEnum('role', ['admin', 'consultant', 'client', 'manager']).notNull(),
   tenantId: varchar('tenant_id', { length: 36 }).notNull(),
