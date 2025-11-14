@@ -142,6 +142,106 @@ export const auditLogs = mysqlTable('audit_logs', {
   timestampIdx: index('idx_timestamp').on(table.timestamp)
 }));
 
+// Tabela de Questionários COPSOQ II
+export const copsoqQuestionnaires = mysqlTable('copsoq_questionnaires', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  clientId: varchar('client_id', { length: 36 }).notNull(),
+  employeeName: varchar('employee_name', { length: 255 }),
+  employeeRole: varchar('employee_role', { length: 255 }),
+  department: varchar('department', { length: 255 }),
+  status: mysqlEnum('status', ['draft', 'in_progress', 'completed', 'cancelled']).default('draft').notNull(),
+  completedAt: timestamp('completed_at'),
+  tenantId: varchar('tenant_id', { length: 36 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => ({
+  clientIdx: index('idx_client').on(table.clientId),
+  tenantIdx: index('idx_tenant').on(table.tenantId),
+  statusIdx: index('idx_status').on(table.status)
+}));
+
+// Tabela de Respostas COPSOQ II (7 dimensões psicossociais)
+export const copsoqResponses = mysqlTable('copsoq_responses', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  questionnaireId: varchar('questionnaire_id', { length: 36 }).notNull(),
+  
+  // Dimensão 1: Exigências no Trabalho (6 questões)
+  workPace: int('work_pace'), // 0-4: Ritmo de trabalho
+  quantitativeLoad: int('quantitative_load'), // 0-4: Quantidade de trabalho
+  cognitiveLoad: int('cognitive_load'), // 0-4: Exigências cognitivas
+  emotionalLoad: int('emotional_load'), // 0-4: Exigências emocionais
+  workLifeConflict: int('work_life_conflict'), // 0-4: Conflito trabalho-vida
+  workTime: int('work_time'), // 0-4: Tempo de trabalho
+  
+  // Dimensão 2: Organização do Trabalho (7 questões)
+  influence: int('influence'), // 0-4: Influência no trabalho
+  possibilitiesDevelopment: int('possibilities_development'), // 0-4: Possibilidades de desenvolvimento
+  meaningWork: int('meaning_work'), // 0-4: Significado do trabalho
+  commitment: int('commitment'), // 0-4: Comprometimento
+  predictability: int('predictability'), // 0-4: Previsibilidade
+  roleClarity: int('role_clarity'), // 0-4: Clareza do papel
+  roleConflicts: int('role_conflicts'), // 0-4: Conflitos de papel
+  
+  // Dimensão 3: Relações Sociais e Liderança (8 questões)
+  qualityLeadership: int('quality_leadership'), // 0-4: Qualidade da liderança
+  socialSupport: int('social_support'), // 0-4: Apoio social de colegas
+  socialSupportSupervisor: int('social_support_supervisor'), // 0-4: Apoio social do supervisor
+  senseCommunity: int('sense_community'), // 0-4: Senso de comunidade
+  feedbackWork: int('feedback_work'), // 0-4: Feedback sobre o trabalho
+  socialRelations: int('social_relations'), // 0-4: Relações sociais
+  trust: int('trust'), // 0-4: Confiança horizontal
+  trustVertical: int('trust_vertical'), // 0-4: Confiança vertical
+  
+  // Dimensão 4: Interface Trabalho-Indivíduo (6 questões)
+  insecurity: int('insecurity'), // 0-4: Insegurança laboral
+  insecurityChanges: int('insecurity_changes'), // 0-4: Insegurança quanto a mudanças
+  jobSatisfaction: int('job_satisfaction'), // 0-4: Satisfação no trabalho
+  workFamilyEnrichment: int('work_family_enrichment'), // 0-4: Enriquecimento trabalho-família
+  familyWorkEnrichment: int('family_work_enrichment'), // 0-4: Enriquecimento família-trabalho
+  motivationWork: int('motivation_work'), // 0-4: Motivação no trabalho
+  
+  // Dimensão 5: Valores no Local de Trabalho (5 questões)
+  recognitionSupervisor: int('recognition_supervisor'), // 0-4: Reconhecimento do supervisor
+  recognitionManagement: int('recognition_management'), // 0-4: Reconhecimento da gestão
+  fairness: int('fairness'), // 0-4: Justiça e respeito
+  qualityWork: int('quality_work'), // 0-4: Qualidade do trabalho
+  corporateSocialResponsibility: int('corporate_social_responsibility'), // 0-4: Responsabilidade social corporativa
+  
+  // Dimensão 6: Saúde e Bem-estar (6 questões)
+  generalHealth: int('general_health'), // 0-4: Saúde geral
+  mentalHealth: int('mental_health'), // 0-4: Saúde mental
+  burnout: int('burnout'), // 0-4: Burnout
+  stress: int('stress'), // 0-4: Estresse
+  sleepProblems: int('sleep_problems'), // 0-4: Problemas de sono
+  cognitiveStress: int('cognitive_stress'), // 0-4: Estresse cognitivo
+  
+  // Dimensão 7: Comportamentos Ofensivos (4 questões)
+  bullying: int('bullying'), // 0-4: Assédio moral
+  unwantedSexualAttention: int('unwanted_sexual_attention'), // 0-4: Atenção sexual indesejada
+  threatsViolence: int('threats_violence'), // 0-4: Ameaças de violência
+  unpleasantTeasing: int('unpleasant_teasing'), // 0-4: Zombaria desagradável
+  
+  // Scores calculados por dimensão (0-100)
+  scoreWorkDemands: decimal('score_work_demands', { precision: 5, scale: 2 }),
+  scoreWorkOrganization: decimal('score_work_organization', { precision: 5, scale: 2 }),
+  scoreSocialRelations: decimal('score_social_relations', { precision: 5, scale: 2 }),
+  scoreWorkIndividualInterface: decimal('score_work_individual_interface', { precision: 5, scale: 2 }),
+  scoreWorkplaceValues: decimal('score_workplace_values', { precision: 5, scale: 2 }),
+  scoreHealthWellbeing: decimal('score_health_wellbeing', { precision: 5, scale: 2 }),
+  scoreOffensiveBehaviors: decimal('score_offensive_behaviors', { precision: 5, scale: 2 }),
+  
+  // Score global (média ponderada)
+  totalScore: decimal('total_score', { precision: 5, scale: 2 }),
+  riskLevel: mysqlEnum('risk_level', ['baixo', 'médio', 'alto', 'crítico']),
+  
+  // Metadados
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => ({
+  questionnaireIdx: index('idx_questionnaire').on(table.questionnaireId),
+  riskLevelIdx: index('idx_risk_level').on(table.riskLevel)
+}));
+
 // Relações (Drizzle Relations)
 export const usersRelations = relations(users, ({ many }) => ({
   proposals: many(proposals),
