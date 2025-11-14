@@ -139,7 +139,14 @@ export const proposalsRouter = router({
       status: z.enum(['draft', 'sent', 'approved', 'rejected', 'archived'])
     }))
     .mutation(async ({ input }) => {
-      // Mock response - will be replaced with database update
+      await db
+        .update(proposals)
+        .set({
+          status: input.status,
+          updatedAt: new Date()
+        })
+        .where(eq(proposals.id, input.id));
+      
       return { success: true, id: input.id, status: input.status };
     })
 });

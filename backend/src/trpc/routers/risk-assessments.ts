@@ -1,21 +1,30 @@
 // backend/src/trpc/routers/risk-assessments.ts
 import { router, publicProcedure } from '../router';
 import { z } from 'zod';
+import { db } from '../../database/connection';
+import { riskAssessments } from '../../database/schema';
+import { eq } from 'drizzle-orm';
+import { generateId } from '../../database/helpers';
 
 export const riskAssessmentsRouter = router({
   listAssessments: publicProcedure
     .input(z.object({ tenantId: z.string() }))
     .query(async ({ input }) => {
-      // Mock data - will be replaced with database query
-      return [
-        {
-          id: 'risk-1',
-          clientId: 'client-1',
-          sector: 'TI',
-          riskLevel: 'médio',
-          tenantId: input.tenantId
-        }
-      ];
+      const result = await db
+        .select()
+        .from(riskAssessments)
+        .where(eq(riskAssessments.tenantId, input.tenantId))
+        .orderBy(riskAssessments.createdAt);
+      
+      return result.map(row => ({
+        ...row,
+        psychosocialFactors: row.psychosocialFactors 
+          ? JSON.parse(row.psychosocialFactors) 
+          : null,
+        recommendations: row.recommendations 
+          ? JSON.parse(row.recommendations) 
+          : []
+      }));
     }),
 
   createAssessment: publicProcedure
@@ -28,9 +37,22 @@ export const riskAssessmentsRouter = router({
       tenantId: z.string()
     }))
     .mutation(async ({ input }) => {
-      // Mock response - will be replaced with database insert
+      const assessmentId = generateId();
+      
+      await db.insert(riskAssessments).values({
+        id: assessmentId,
+        clientId: input.clientId,
+        sector: input.sector,
+        riskLevel: input.riskLevel,
+        psychosocialFactors: input.psychosocialFactors || null,
+        recommendations: input.recommendations || null,
+        tenantId: input.tenantId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
       return {
-        id: `risk-${Date.now()}`,
+        id: assessmentId,
         ...input
       };
     }),
@@ -43,7 +65,23 @@ export const riskAssessmentsRouter = router({
       recommendations: z.string().optional()
     }))
     .mutation(async ({ input }) => {
-      // Mock response - will be replaced with database update
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+      
+      if (input.riskLevel) updateData.riskLevel = input.riskLevel;
+      if (input.psychosocialFactors !== undefined) {
+        updateData.psychosocialFactors = input.psychosocialFactors;
+      }
+      if (input.recommendations !== undefined) {
+        updateData.recommendations = input.recommendations;
+      }
+
+      await db
+        .update(riskAssessments)
+        .set(updateData)
+        .where(eq(riskAssessments.id, input.id));
+      
       return { success: true, id: input.id };
     })
 });
